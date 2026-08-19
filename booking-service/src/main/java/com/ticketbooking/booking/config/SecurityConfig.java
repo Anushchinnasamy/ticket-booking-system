@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // check inside TicketService, but role-gating it too
                         // keeps random authenticated customers from hitting it.
                         .requestMatchers(HttpMethod.POST, "/tickets/redeem").hasAnyRole("COUNTER_STAFF", "ADMIN")
+                        // Counter/gate staff booking a walk-up customer directly,
+                        // skipping payment — same role gate as ticket redemption.
+                        .requestMatchers(HttpMethod.POST, "/bookings/counter-sale").hasAnyRole("COUNTER_STAFF", "ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

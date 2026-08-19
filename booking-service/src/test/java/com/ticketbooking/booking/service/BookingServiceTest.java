@@ -1,6 +1,7 @@
 package com.ticketbooking.booking.service;
 
 import com.ticketbooking.booking.client.EventServiceClient;
+import com.ticketbooking.booking.client.PaymentServiceClient;
 import com.ticketbooking.booking.domain.Booking;
 import com.ticketbooking.booking.domain.BookingStatus;
 import com.ticketbooking.booking.lock.SeatLockService;
@@ -48,6 +49,9 @@ class BookingServiceTest {
     private EventServiceClient eventServiceClient;
 
     @Mock
+    private PaymentServiceClient paymentServiceClient;
+
+    @Mock
     private SeatLockService seatLockService;
 
     @Mock
@@ -61,8 +65,8 @@ class BookingServiceTest {
     });
 
     private BookingService newService() {
-        return new BookingService(bookingRepository, eventServiceClient, seatLockService, kafkaTemplate,
-                kafkaPublishRetry, kafkaRetryScheduler);
+        return new BookingService(bookingRepository, eventServiceClient, paymentServiceClient, seatLockService,
+                kafkaTemplate, kafkaPublishRetry, kafkaRetryScheduler);
     }
 
     /**
@@ -292,6 +296,82 @@ class BookingServiceTest {
         verifyNoInteractions(eventServiceClient);
         verifyNoInteractions(seatLockService);
         verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    void cancelConfirmedBooking_whenConfirmedAndOwner_refundsReleasesAndCancels() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = bookingWithId(showId, seatId, userId);
+        booking.confirm();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+
+        BookingResponse result = newService().cancelConfirmedBooking(bookingId, userId, false);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CANCELLED);
+        verify(paymentServiceClient).refundBooking(bookingId);
+        verify(eventServiceClient).releaseSeat(showId, seatId);
+        verify(bookingRepository).save(booking);
+        verify(kafkaTemplate).send(eq("booking-cancelled"), anyString(), any());
+    }
+
+    @Test
+    void cancelConfirmedBooking_whenNotOwnerAndNotAdmin_throwsResourceNotFoundWithoutRefunding() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = bookingWithId(showId, seatId, ownerId);
+        booking.confirm();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> newService().cancelConfirmedBooking(bookingId, otherUserId, false))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verifyNoInteractions(paymentServiceClient);
+        verifyNoInteractions(eventServiceClient);
+    }
+
+    @Test
+    void cancelConfirmedBooking_whenNotConfirmed_throwsConflictWithoutRefunding() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = bookingWithId(showId, seatId, userId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> newService().cancelConfirmedBooking(bookingId, userId, false))
+                .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(paymentServiceClient);
+        verifyNoInteractions(eventServiceClient);
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    void createCounterSaleBooking_locksClaimsAndConfirmsDirectly() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        CreateBookingRequest request = new CreateBookingRequest(showId, seatId);
+        Booking pending = bookingWithId(showId, seatId, customerId);
+        when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
+        when(bookingRepository.save(any(Booking.class))).thenReturn(pending);
+        when(bookingRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+
+        BookingResponse result = newService().createCounterSaleBooking(request, customerId);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(result.userId()).isEqualTo(customerId);
+        verify(eventServiceClient).claimSeat(showId, seatId);
+        verify(eventServiceClient).bookSeat(showId, seatId);
+        verify(kafkaTemplate).send(eq("booking-confirmed"), anyString(), any());
+        verifyNoInteractions(paymentServiceClient);
     }
 
     /**

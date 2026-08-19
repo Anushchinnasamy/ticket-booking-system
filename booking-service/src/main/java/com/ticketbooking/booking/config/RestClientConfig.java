@@ -13,4 +13,10 @@ public class RestClientConfig {
                                               @Value("${event-service.base-url}") String baseUrl) {
         return builder.baseUrl(baseUrl).build();
     }
+
+    @Bean
+    public RestClient paymentServiceRestClient(RestClient.Builder builder,
+                                                @Value("${payment-service.base-url}") String baseUrl) {
+        return builder.baseUrl(baseUrl).build();
+    }
 }

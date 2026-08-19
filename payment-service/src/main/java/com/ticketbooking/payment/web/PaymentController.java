@@ -51,6 +51,12 @@ public class PaymentController {
         return paymentService.getPaymentForBooking(bookingId);
     }
 
+    /** Internal, service-to-service only — called by booking-service when a customer cancels an already-paid booking. */
+    @PostMapping("/booking/{bookingId}/refund")
+    public PaymentResponse refundForBooking(@PathVariable UUID bookingId) {
+        return paymentService.refundForBooking(bookingId);
+    }
+
     @PostMapping("/{id}/verify")
     public PaymentResponse verify(@PathVariable UUID id, @Valid @RequestBody VerifyRequest request) {
         return paymentService.verify(id, request);

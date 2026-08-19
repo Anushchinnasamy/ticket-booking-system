@@ -5,6 +5,7 @@ import com.ticketbooking.common.event.BookingConfirmedEvent;
 import com.ticketbooking.common.event.OtpRequestedEvent;
 import com.ticketbooking.common.event.PasswordResetRequestedEvent;
 import com.ticketbooking.common.event.SeatStatusChangedEvent;
+import com.ticketbooking.common.event.WaitlistSeatAvailableEvent;
 import com.ticketbooking.notification.client.EventServiceClient;
 import com.ticketbooking.notification.client.PaymentDetails;
 import com.ticketbooking.notification.client.PaymentServiceClient;
@@ -82,6 +83,26 @@ public class NotificationEventListener {
                 seat.rowLabel(), seat.seatNumber(), seat.seatType(), formatCancelledPayment(payment),
                 event.cancelledAt());
         emailService.send(email, "Your booking has been cancelled", body);
+    }
+
+    @KafkaListener(topics = "waitlist-seat-available", groupId = "${spring.kafka.consumer.group-id}")
+    public void onWaitlistSeatAvailable(WaitlistSeatAvailableEvent event) {
+        String email = userServiceClient.getEmail(event.userId());
+        SeatDetails seat = eventServiceClient.getSeatDetails(event.showId(), event.seatId());
+        String body = """
+                Hi,
+
+                Good news — a seat just opened up for a show you're waitlisted for!
+
+                Event:      %s
+                Venue:      %s
+                Show time:  %s
+                Seat:       %s%d (%s)
+
+                Book it now before someone else does.
+                """.formatted(seat.eventTitle(), seat.venueName(), seat.startTime(),
+                seat.rowLabel(), seat.seatNumber(), seat.seatType());
+        emailService.send(email, "A seat opened up for your waitlisted show", body);
     }
 
     private String formatPayment(Optional<PaymentDetails> payment) {

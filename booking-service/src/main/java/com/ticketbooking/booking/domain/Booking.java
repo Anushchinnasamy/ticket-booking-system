@@ -11,6 +11,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+import com.ticketbooking.common.exception.ConflictException;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -117,5 +119,20 @@ public class Booking {
         if (status == BookingStatus.PENDING) {
             status = BookingStatus.CONFIRMED;
         }
+    }
+
+    /**
+     * Customer-initiated cancellation of a paid booking. Unlike {@link #cancel()}'s
+     * tolerant PENDING-only no-op (used for payment-failure/stale-hold
+     * compensation, where silently ignoring an already-resolved booking is
+     * correct), this only succeeds from CONFIRMED and throws otherwise —
+     * silently no-op'ing a customer's explicit cancel request would hide a
+     * genuine conflict (already cancelled, already checked in) from them.
+     */
+    public void cancelConfirmed() {
+        if (status != BookingStatus.CONFIRMED) {
+            throw new ConflictException("Only a CONFIRMED booking can be cancelled: current status " + status);
+        }
+        status = BookingStatus.CANCELLED;
     }
 }

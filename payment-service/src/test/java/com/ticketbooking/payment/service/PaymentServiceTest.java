@@ -232,6 +232,63 @@ class PaymentServiceTest {
     }
 
     @Test
+    void refundForBooking_whenSuccessPayment_refundsViaGatewayAndMarksRefunded() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        Payment payment = new Payment("idem-key-refund-1", bookingId, new BigDecimal("250.00"), "INR", "order_abc");
+        payment.markSuccess("pay_xyz");
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.of(payment));
+        when(gatewayClient.refund("pay_xyz", new BigDecimal("250.00"))).thenReturn("rfnd_123");
+        when(paymentRepository.save(payment)).thenReturn(payment);
+
+        PaymentResponse result = paymentService.refundForBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(gatewayClient).refund("pay_xyz", new BigDecimal("250.00"));
+        verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    void refundForBooking_whenAlreadyRefunded_isIdempotentAndSkipsGateway() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        Payment payment = new Payment("idem-key-refund-2", bookingId, new BigDecimal("250.00"), "INR", "order_abc");
+        payment.markSuccess("pay_xyz");
+        payment.markRefunded("rfnd_already");
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.of(payment));
+
+        PaymentResponse result = paymentService.refundForBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(PaymentStatus.REFUNDED);
+        verifyNoInteractions(gatewayClient);
+        verify(paymentRepository, never()).save(any(Payment.class));
+    }
+
+    @Test
+    void refundForBooking_whenPaymentNotSuccessful_throwsConflictWithoutCallingGateway() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        Payment payment = new Payment("idem-key-refund-3", bookingId, new BigDecimal("250.00"), "INR", "order_abc");
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.refundForBooking(bookingId))
+                .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(gatewayClient);
+        verify(paymentRepository, never()).save(any(Payment.class));
+    }
+
+    @Test
+    void refundForBooking_whenNoPaymentForBooking_throwsResourceNotFoundException() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.refundForBooking(bookingId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
     void getPayment_whenNotFound_throwsResourceNotFoundException() {
         paymentService = newService();
         UUID paymentId = UUID.randomUUID();

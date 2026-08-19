@@ -49,6 +49,9 @@ public class Payment {
     @Column(name = "razorpay_payment_id", length = 64)
     private String razorpayPaymentId;
 
+    @Column(name = "razorpay_refund_id", length = 64)
+    private String razorpayRefundId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -90,6 +93,12 @@ public class Payment {
         this.status = PaymentStatus.FAILED;
     }
 
+    /** Only a SUCCESS payment can be refunded — enforced by the caller (PaymentService), not here, so the conflict message can name the actual booking. */
+    public void markRefunded(String razorpayRefundId) {
+        this.razorpayRefundId = razorpayRefundId;
+        this.status = PaymentStatus.REFUNDED;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -120,6 +129,10 @@ public class Payment {
 
     public String getRazorpayPaymentId() {
         return razorpayPaymentId;
+    }
+
+    public String getRazorpayRefundId() {
+        return razorpayRefundId;
     }
 
     public Instant getCreatedAt() {

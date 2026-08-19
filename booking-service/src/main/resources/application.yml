@@ -47,6 +47,9 @@ management:
 event-service:
   base-url: http://localhost:8081
 
+payment-service:
+  base-url: http://localhost:8083
+
 redis:
   host: localhost
   port: 6379

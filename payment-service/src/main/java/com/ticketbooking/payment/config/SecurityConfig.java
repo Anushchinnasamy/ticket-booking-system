@@ -56,6 +56,11 @@ public class SecurityConfig {
                         // Hardening this is Phase 8 territory, same as every
                         // other internal endpoint in this system.
                         .requestMatchers(HttpMethod.GET, "/payments/booking/*").permitAll()
+                        // Internal, service-to-service only (called by booking-service
+                        // on customer-initiated cancellation of a paid booking).
+                        // Hardening this is Phase 8 territory, same as every other
+                        // internal endpoint in this system.
+                        .requestMatchers(HttpMethod.POST, "/payments/booking/*/refund").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

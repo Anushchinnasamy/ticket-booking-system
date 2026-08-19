@@ -1,5 +1,5 @@
 package com.ticketbooking.payment.domain;
 
 public enum PaymentStatus {
-    INITIATED, SUCCESS, FAILED
+    INITIATED, SUCCESS, FAILED, REFUNDED
 }

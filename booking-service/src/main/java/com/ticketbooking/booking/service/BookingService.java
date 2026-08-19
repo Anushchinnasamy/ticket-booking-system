@@ -1,6 +1,7 @@
 package com.ticketbooking.booking.service;
 
 import com.ticketbooking.booking.client.EventServiceClient;
+import com.ticketbooking.booking.client.PaymentServiceClient;
 import com.ticketbooking.booking.domain.Booking;
 import com.ticketbooking.booking.domain.BookingStatus;
 import com.ticketbooking.booking.lock.SeatLockService;
@@ -29,16 +30,19 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final EventServiceClient eventServiceClient;
+    private final PaymentServiceClient paymentServiceClient;
     private final SeatLockService seatLockService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final Retry kafkaPublishRetry;
     private final ScheduledExecutorService kafkaRetryScheduler;
 
     public BookingService(BookingRepository bookingRepository, EventServiceClient eventServiceClient,
-                           SeatLockService seatLockService, KafkaTemplate<String, Object> kafkaTemplate,
+                           PaymentServiceClient paymentServiceClient, SeatLockService seatLockService,
+                           KafkaTemplate<String, Object> kafkaTemplate,
                            Retry kafkaPublishRetry, ScheduledExecutorService kafkaRetryScheduler) {
         this.bookingRepository = bookingRepository;
         this.eventServiceClient = eventServiceClient;
+        this.paymentServiceClient = paymentServiceClient;
         this.seatLockService = seatLockService;
         this.kafkaTemplate = kafkaTemplate;
         this.kafkaPublishRetry = kafkaPublishRetry;
@@ -138,6 +142,51 @@ public class BookingService {
                             finalBooking.getUserId(), Instant.now())), kafkaPublishRetry, kafkaRetryScheduler);
         }
         return toResponse(booking);
+    }
+
+    /**
+     * Customer-initiated cancellation of an already-CONFIRMED (paid) booking.
+     * Refund is called first — payment-service is the source of truth for
+     * money movement, so it must succeed before anything else changes, same
+     * "external call before local commit" ordering used by createBooking.
+     * Publishing booking-cancelled after the local save is what drives both
+     * the cancellation email and waitlist promotion (see WaitlistEventListener),
+     * both async, off this response — and it's also what makes the ticket's
+     * QR naturally rejected at redemption from this point on, since
+     * checkInIfConfirmed only ever succeeds while status is CONFIRMED.
+     */
+    public BookingResponse cancelConfirmedBooking(UUID id, UUID requestingUserId, boolean isAdmin) {
+        Booking booking = findOrThrow(id);
+        if (!isAdmin && !booking.getUserId().equals(requestingUserId)) {
+            throw new ResourceNotFoundException("Booking not found: " + id);
+        }
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new ConflictException("Only a CONFIRMED booking can be cancelled: current status " + booking.getStatus());
+        }
+
+        paymentServiceClient.refundBooking(id);
+        eventServiceClient.releaseSeat(booking.getShowId(), booking.getSeatId());
+        booking.cancelConfirmed();
+        booking = bookingRepository.save(booking);
+
+        Booking finalBooking = booking;
+        RetryingPublisher.withRetry(() -> kafkaTemplate.send(TOPIC_BOOKING_CANCELLED, finalBooking.getId().toString(),
+                new BookingCancelledEvent(finalBooking.getId(), finalBooking.getShowId(), finalBooking.getSeatId(),
+                        finalBooking.getUserId(), Instant.now())), kafkaPublishRetry, kafkaRetryScheduler);
+        return toResponse(booking);
+    }
+
+    /**
+     * Counter-staff sale: skips payment entirely and jumps straight to
+     * CONFIRMED on behalf of a walk-up customer. Reuses createBooking (Redis
+     * lock + seat claim + PENDING row) followed immediately by confirmBooking
+     * (seat book + booking-confirmed publish, which triggers Phase 7's usual
+     * async ticket generation) — no new booking/payment logic needed, just a
+     * different caller skipping the payment step in between.
+     */
+    public BookingResponse createCounterSaleBooking(CreateBookingRequest request, UUID customerUserId) {
+        BookingResponse pending = createBooking(request, customerUserId);
+        return confirmBooking(pending.id());
     }
 
     private Booking findOrThrow(UUID id) {

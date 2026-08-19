@@ -119,6 +119,32 @@ public class PaymentService {
         return toResponse(payment);
     }
 
+    /**
+     * Called by booking-service when a customer cancels an already-paid
+     * booking. Idempotent — a payment that's already REFUNDED returns the
+     * stored result instead of calling Razorpay's refund API a second time,
+     * same "check first" principle as {@link #charge}. Only a SUCCESS
+     * payment can be refunded; anything else is a genuine conflict (nothing
+     * was actually charged, or it already failed) rather than something to
+     * silently tolerate.
+     */
+    public PaymentResponse refundForBooking(UUID bookingId) {
+        Payment payment = paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("No payment found for booking: " + bookingId));
+
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            return toResponse(payment);
+        }
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new ConflictException("Cannot refund a payment that was not successful: " + payment.getStatus());
+        }
+
+        String refundId = gatewayClient.refund(payment.getRazorpayPaymentId(), payment.getAmount());
+        payment.markRefunded(refundId);
+        paymentRepository.save(payment);
+        return toResponse(payment);
+    }
+
     /** Called by the checkout flow's failure handler (declined card, cancelled payment, etc). */
     public PaymentResponse fail(UUID id, FailRequest request) {
         Payment payment = findOrThrow(id);

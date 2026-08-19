@@ -3,6 +3,7 @@ package com.ticketbooking.payment.gateway;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.razorpay.Refund;
 import com.razorpay.Utils;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +35,18 @@ public class RazorpayGatewayClient {
             return order.get("id");
         } catch (RazorpayException e) {
             throw new PaymentGatewayException("Failed to create Razorpay order", e);
+        }
+    }
+
+    /** Issues a real, full refund against a captured Razorpay payment and returns the refund id. */
+    public String refund(String razorpayPaymentId, BigDecimal amount) {
+        try {
+            JSONObject request = new JSONObject();
+            request.put("amount", amount.multiply(BigDecimal.valueOf(100)).intValue());
+            Refund refund = razorpayClient.payments.refund(razorpayPaymentId, request);
+            return refund.get("id");
+        } catch (RazorpayException e) {
+            throw new PaymentGatewayException("Failed to refund Razorpay payment " + razorpayPaymentId, e);
         }
     }
 

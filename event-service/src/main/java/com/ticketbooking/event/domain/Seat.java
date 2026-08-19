@@ -93,12 +93,14 @@ public class Seat {
     }
 
     /**
-     * Tolerant release used by cleanup paths (the stale-booking sweep): only
-     * transitions LOCKED -> AVAILABLE, otherwise a no-op, since the goal is
-     * "make sure it's free," not asserting a specific prior state.
+     * Tolerant release used by cleanup paths (the stale-booking sweep) and by
+     * cancellation of an already-BOOKED seat (a paid booking being
+     * cancelled/refunded): transitions LOCKED or BOOKED -> AVAILABLE,
+     * otherwise a no-op, since the goal is "make sure it's free," not
+     * asserting a specific prior state.
      */
     public void release() {
-        if (status == SeatStatus.LOCKED) {
+        if (status == SeatStatus.LOCKED || status == SeatStatus.BOOKED) {
             status = SeatStatus.AVAILABLE;
         }
     }

@@ -240,6 +240,21 @@ class ShowServiceTest {
     }
 
     @Test
+    void releaseSeat_whenBooked_transitionsToAvailable() {
+        Seat seat = newSeat(SeatStatus.BOOKED);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        newService().releaseSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
+        verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
+        verify(seatMapCacheService).updateSeat(eq(showId), any());
+    }
+
+    @Test
     void releaseSeat_whenAlreadyAvailable_isNoOp() {
         Seat seat = newSeat(SeatStatus.AVAILABLE);
         UUID showId = UUID.randomUUID();

@@ -12,6 +12,7 @@ import com.ticketbooking.user.web.dto.LoginRequest;
 import com.ticketbooking.user.web.dto.ProfileResponse;
 import com.ticketbooking.user.web.dto.RefreshRequest;
 import com.ticketbooking.user.web.dto.RegisterRequest;
+import com.ticketbooking.user.web.dto.UserSummaryResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,6 +89,17 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         return new ProfileResponse(user.getId(), user.getEmail(), user.getRole(), user.getCreatedAt());
+    }
+
+    /**
+     * Internal, service-to-service lookup (e.g. Notification Service
+     * resolving an email from the userId in a booking-confirmed event).
+     */
+    @Transactional(readOnly = true)
+    public UserSummaryResponse getUserSummary(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        return new UserSummaryResponse(user.getId(), user.getEmail());
     }
 
     /** Public so OtpService can issue the same token pair after a successful OTP verification. */

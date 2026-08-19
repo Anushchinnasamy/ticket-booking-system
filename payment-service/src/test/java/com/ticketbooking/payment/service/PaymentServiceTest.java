@@ -240,4 +240,27 @@ class PaymentServiceTest {
         assertThatThrownBy(() -> paymentService.getPayment(paymentId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void getPaymentForBooking_whenFound_returnsMostRecentPayment() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        Payment payment = new Payment("idem-key-7", bookingId, new BigDecimal("250.00"), "INR", "order_abc");
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.of(payment));
+
+        PaymentResponse result = paymentService.getPaymentForBooking(bookingId);
+
+        assertThat(result.bookingId()).isEqualTo(bookingId);
+        assertThat(result.amount()).isEqualByComparingTo("250.00");
+    }
+
+    @Test
+    void getPaymentForBooking_whenNotFound_throwsResourceNotFoundException() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        when(paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.getPaymentForBooking(bookingId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }

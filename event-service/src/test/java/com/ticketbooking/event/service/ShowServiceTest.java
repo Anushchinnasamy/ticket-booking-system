@@ -18,15 +18,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +45,9 @@ class ShowServiceTest {
 
     @Mock
     private SeatRepository seatRepository;
+
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @InjectMocks
     private ShowService showService;
@@ -125,6 +136,24 @@ class ShowServiceTest {
         showService.claimSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
+        verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
+    }
+
+    /**
+     * Same non-blocking guarantee as booking-service's Kafka publishing (see
+     * BookingServiceTest): if this ever started blocking on the send, the
+     * test would hang until JUnit's timeout kills it.
+     */
+    @Test
+    void claimSeat_doesNotBlockOnKafkaPublish() {
+        Seat seat = newSeat(SeatStatus.AVAILABLE);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+        CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
+
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> showService.claimSeat(showId, seatId));
     }
 
     @Test
@@ -150,6 +179,7 @@ class ShowServiceTest {
         showService.releaseSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
+        verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
     }
 
     @Test
@@ -176,6 +206,7 @@ class ShowServiceTest {
         showService.bookSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.BOOKED);
+        verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
     }
 
     @Test

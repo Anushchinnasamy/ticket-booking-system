@@ -169,6 +169,28 @@ class AuthServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    @Test
+    void getUserSummary_whenFound_returnsIdAndEmail() {
+        AuthService authService = newService();
+        User user = userWithId("a@b.com", "hashed", UserRole.CUSTOMER);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        var result = authService.getUserSummary(user.getId());
+
+        assertThat(result.id()).isEqualTo(user.getId());
+        assertThat(result.email()).isEqualTo("a@b.com");
+    }
+
+    @Test
+    void getUserSummary_whenNotFound_throwsResourceNotFoundException() {
+        AuthService authService = newService();
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.getUserSummary(userId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
     /**
      * User.id is @GeneratedValue, only populated by JPA at persist time — a
      * plain `new User(...)` in a unit test leaves it null. AuthService needs

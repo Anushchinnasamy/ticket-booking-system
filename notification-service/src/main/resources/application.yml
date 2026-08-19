@@ -4,8 +4,39 @@ server:
 spring:
   application:
     name: notification-service
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.ticketbooking.common.event
+  # Real SMTP, not a stub — Gmail App Password. Credentials via env vars
+  # GMAIL_USERNAME / GMAIL_APP_PASSWORD, never committed to git.
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME:}
+    password: ${GMAIL_APP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 management:
   endpoint:
     health:
       show-details: never
+
+user-service:
+  base-url: http://localhost:8084
+
+event-service:
+  base-url: http://localhost:8081
+
+payment-service:
+  base-url: http://localhost:8083

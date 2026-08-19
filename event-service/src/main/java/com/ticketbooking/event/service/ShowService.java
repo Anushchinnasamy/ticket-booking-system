@@ -1,5 +1,6 @@
 package com.ticketbooking.event.service;
 
+import com.ticketbooking.common.event.SeatStatusChangedEvent;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
 import com.ticketbooking.event.domain.Seat;
 import com.ticketbooking.event.domain.Show;
@@ -7,9 +8,11 @@ import com.ticketbooking.event.repository.SeatRepository;
 import com.ticketbooking.event.repository.ShowRepository;
 import com.ticketbooking.event.web.dto.SeatMapResponse;
 import com.ticketbooking.event.web.dto.SeatResponse;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,12 +20,17 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ShowService {
 
+    private static final String TOPIC_SEAT_STATUS_CHANGED = "seat-status-changed";
+
     private final ShowRepository showRepository;
     private final SeatRepository seatRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public ShowService(ShowRepository showRepository, SeatRepository seatRepository) {
+    public ShowService(ShowRepository showRepository, SeatRepository seatRepository,
+                        KafkaTemplate<String, Object> kafkaTemplate) {
         this.showRepository = showRepository;
         this.seatRepository = seatRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public SeatMapResponse getSeatMap(UUID showId) {
@@ -68,6 +76,7 @@ public class ShowService {
         Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
         seat.lock();
+        publishSeatStatusChanged(showId, seatId, seat.getStatus().name());
     }
 
     @Transactional
@@ -75,6 +84,7 @@ public class ShowService {
         Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
         seat.release();
+        publishSeatStatusChanged(showId, seatId, seat.getStatus().name());
     }
 
     /** Called by booking-service once payment succeeds: finalizes LOCKED -> BOOKED. */
@@ -83,5 +93,15 @@ public class ShowService {
         Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
         seat.book();
+        publishSeatStatusChanged(showId, seatId, seat.getStatus().name());
+    }
+
+    /**
+     * Fire-and-forget, same as booking-service's event publishing — never
+     * blocks the caller on the broker or on any downstream consumer.
+     */
+    private void publishSeatStatusChanged(UUID showId, UUID seatId, String status) {
+        kafkaTemplate.send(TOPIC_SEAT_STATUS_CHANGED, seatId.toString(),
+                new SeatStatusChangedEvent(showId, seatId, status, Instant.now()));
     }
 }

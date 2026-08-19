@@ -7,6 +7,7 @@ import com.ticketbooking.common.security.RestAuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -50,6 +51,11 @@ public class SecurityConfig {
                         // attacker can't forge without the key secret; /fail can only
                         // downgrade a payment to FAILED, never fraudulently confirm one.
                         .requestMatchers("/payments/*/verify", "/payments/*/fail").permitAll()
+                        // Internal, service-to-service only (called by
+                        // notification-service to enrich booking emails).
+                        // Hardening this is Phase 8 territory, same as every
+                        // other internal endpoint in this system.
+                        .requestMatchers(HttpMethod.GET, "/payments/booking/*").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

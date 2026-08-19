@@ -45,6 +45,12 @@ public class PaymentController {
         return paymentService.getPayment(id);
     }
 
+    /** Internal, service-to-service only — called by notification-service to enrich booking emails. */
+    @GetMapping("/booking/{bookingId}")
+    public PaymentResponse getPaymentForBooking(@PathVariable UUID bookingId) {
+        return paymentService.getPaymentForBooking(bookingId);
+    }
+
     @PostMapping("/{id}/verify")
     public PaymentResponse verify(@PathVariable UUID id, @Valid @RequestBody VerifyRequest request) {
         return paymentService.verify(id, request);

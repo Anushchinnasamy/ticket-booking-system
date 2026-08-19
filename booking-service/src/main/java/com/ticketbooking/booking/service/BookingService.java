@@ -7,25 +7,34 @@ import com.ticketbooking.booking.lock.SeatLockService;
 import com.ticketbooking.booking.repository.BookingRepository;
 import com.ticketbooking.booking.web.dto.BookingResponse;
 import com.ticketbooking.booking.web.dto.CreateBookingRequest;
+import com.ticketbooking.common.event.BookingCancelledEvent;
+import com.ticketbooking.common.event.BookingConfirmedEvent;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
 public class BookingService {
 
+    private static final String TOPIC_BOOKING_CONFIRMED = "booking-confirmed";
+    private static final String TOPIC_BOOKING_CANCELLED = "booking-cancelled";
+
     private final BookingRepository bookingRepository;
     private final EventServiceClient eventServiceClient;
     private final SeatLockService seatLockService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public BookingService(BookingRepository bookingRepository, EventServiceClient eventServiceClient,
-                           SeatLockService seatLockService) {
+                           SeatLockService seatLockService, KafkaTemplate<String, Object> kafkaTemplate) {
         this.bookingRepository = bookingRepository;
         this.eventServiceClient = eventServiceClient;
         this.seatLockService = seatLockService;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     /**
@@ -79,6 +88,13 @@ public class BookingService {
      * still-PENDING booking — guarding the status check before touching the
      * seat is what stops a retried confirm call from re-running side effects
      * against a booking that's already CONFIRMED.
+     *
+     * <p>{@code kafkaTemplate.send} is fire-and-forget (returns a
+     * {@code CompletableFuture} we never block on) — this method, and by
+     * extension payment-service's response to the original caller, returns
+     * without waiting on the broker or on Notification Service's downstream
+     * email send. See {@code BookingServiceTest} for a test that would hang
+     * if that stopped being true.
      */
     public BookingResponse confirmBooking(UUID id) {
         Booking booking = findOrThrow(id);
@@ -87,6 +103,9 @@ public class BookingService {
             seatLockService.unlock(booking.getShowId(), booking.getSeatId());
             booking.confirm();
             booking = bookingRepository.save(booking);
+            kafkaTemplate.send(TOPIC_BOOKING_CONFIRMED, booking.getId().toString(),
+                    new BookingConfirmedEvent(booking.getId(), booking.getShowId(), booking.getSeatId(),
+                            booking.getUserId(), Instant.now()));
         }
         return toResponse(booking);
     }
@@ -104,6 +123,9 @@ public class BookingService {
             seatLockService.forceUnlock(booking.getShowId(), booking.getSeatId());
             booking.cancel();
             booking = bookingRepository.save(booking);
+            kafkaTemplate.send(TOPIC_BOOKING_CANCELLED, booking.getId().toString(),
+                    new BookingCancelledEvent(booking.getId(), booking.getShowId(), booking.getSeatId(),
+                            booking.getUserId(), Instant.now()));
         }
         return toResponse(booking);
     }

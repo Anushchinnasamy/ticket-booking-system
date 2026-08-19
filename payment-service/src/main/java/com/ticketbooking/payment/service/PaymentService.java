@@ -88,6 +88,14 @@ public class PaymentService {
         return toResponse(payment);
     }
 
+    /** Internal, service-to-service only — see the equivalent note in event-service's SecurityConfig. */
+    @Transactional(readOnly = true)
+    public PaymentResponse getPaymentForBooking(UUID bookingId) {
+        Payment payment = paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("No payment found for booking: " + bookingId));
+        return toResponse(payment);
+    }
+
     /** Called by the checkout flow once Razorpay returns a signed success callback. */
     public PaymentResponse verify(UUID id, VerifyRequest request) {
         Payment payment = findOrThrow(id);

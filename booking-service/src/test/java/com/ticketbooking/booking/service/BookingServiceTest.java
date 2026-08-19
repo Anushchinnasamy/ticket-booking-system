@@ -14,13 +14,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,6 +45,9 @@ class BookingServiceTest {
 
     @Mock
     private SeatLockService seatLockService;
+
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @InjectMocks
     private BookingService bookingService;
@@ -154,7 +164,7 @@ class BookingServiceTest {
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID bookingId = UUID.randomUUID();
-        Booking booking = new Booking(showId, seatId, userId);
+        Booking booking = bookingWithId(showId, seatId, userId);
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);
 
@@ -164,6 +174,29 @@ class BookingServiceTest {
         verify(eventServiceClient).bookSeat(showId, seatId);
         verify(seatLockService).unlock(showId, seatId);
         verify(bookingRepository).save(booking);
+        verify(kafkaTemplate).send(eq("booking-confirmed"), anyString(), any());
+    }
+
+    /**
+     * If confirmBooking ever started blocking on the Kafka send (e.g. calling
+     * .get() on the returned future), this test would hang until JUnit's
+     * timeout kills it — proving the "notification happens fully async"
+     * requirement rather than just asserting a fast wall-clock time, which
+     * would be flaky.
+     */
+    @Test
+    void confirmBooking_doesNotBlockOnKafkaPublish() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = bookingWithId(showId, seatId, userId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+        CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
+
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> bookingService.confirmBooking(bookingId));
     }
 
     @Test
@@ -190,7 +223,7 @@ class BookingServiceTest {
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID bookingId = UUID.randomUUID();
-        Booking booking = new Booking(showId, seatId, userId);
+        Booking booking = bookingWithId(showId, seatId, userId);
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);
 
@@ -200,6 +233,22 @@ class BookingServiceTest {
         verify(eventServiceClient).releaseSeat(showId, seatId);
         verify(seatLockService).forceUnlock(showId, seatId);
         verify(bookingRepository).save(booking);
+        verify(kafkaTemplate).send(eq("booking-cancelled"), anyString(), any());
+    }
+
+    @Test
+    void cancelBooking_doesNotBlockOnKafkaPublish() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = bookingWithId(showId, seatId, userId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+        CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
+
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> bookingService.cancelBooking(bookingId));
     }
 
     @Test
@@ -218,5 +267,17 @@ class BookingServiceTest {
         verifyNoInteractions(eventServiceClient);
         verifyNoInteractions(seatLockService);
         verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    /**
+     * Booking.id is @GeneratedValue, only populated by JPA at persist time —
+     * a plain `new Booking(...)` in a unit test leaves it null. Tests that
+     * exercise confirm/cancel need a real id since those paths now publish a
+     * Kafka event keyed by booking.getId().toString().
+     */
+    private static Booking bookingWithId(UUID showId, UUID seatId, UUID userId) {
+        Booking booking = new Booking(showId, seatId, userId);
+        ReflectionTestUtils.setField(booking, "id", UUID.randomUUID());
+        return booking;
     }
 }

@@ -1,5 +1,6 @@
 package com.ticketbooking.event.service;
 
+import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
 import com.ticketbooking.event.domain.Event;
 import com.ticketbooking.event.domain.EventCategory;
@@ -67,6 +68,49 @@ class ShowServiceTest {
         when(showRepository.findById(showId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> showService.getSeatMap(showId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void lockSeat_whenAvailable_transitionsToLocked() {
+        Event event = new Event("The Great Adventure", EventCategory.MOVIE, "An action-packed journey.");
+        Venue venue = new Venue("PVR Forum Mall", "Bengaluru", "Koramangala");
+        Show show = new Show(event, venue, Instant.parse("2026-09-01T10:00:00Z"), new BigDecimal("250.00"));
+        SeatMap seatMap = new SeatMap(show);
+        Seat seat = new Seat(seatMap, "1", 1, SeatType.REGULAR, new BigDecimal("250.00"), SeatStatus.AVAILABLE);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.of(seat));
+
+        showService.lockSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
+    }
+
+    @Test
+    void lockSeat_whenAlreadyLocked_throwsConflictException() {
+        Event event = new Event("The Great Adventure", EventCategory.MOVIE, "An action-packed journey.");
+        Venue venue = new Venue("PVR Forum Mall", "Bengaluru", "Koramangala");
+        Show show = new Show(event, venue, Instant.parse("2026-09-01T10:00:00Z"), new BigDecimal("250.00"));
+        SeatMap seatMap = new SeatMap(show);
+        Seat seat = new Seat(seatMap, "1", 1, SeatType.REGULAR, new BigDecimal("250.00"), SeatStatus.LOCKED);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.of(seat));
+
+        assertThatThrownBy(() -> showService.lockSeat(showId, seatId))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void lockSeat_whenSeatNotFound_throwsResourceNotFoundException() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> showService.lockSeat(showId, seatId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

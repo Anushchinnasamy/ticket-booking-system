@@ -1,5 +1,6 @@
 package com.ticketbooking.event.domain;
 
+import com.ticketbooking.common.exception.ConflictException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -82,5 +83,12 @@ public class Seat {
 
     public SeatStatus getStatus() {
         return status;
+    }
+
+    public void lock() {
+        if (status != SeatStatus.AVAILABLE) {
+            throw new ConflictException("Seat is not available: " + id);
+        }
+        status = SeatStatus.LOCKED;
     }
 }

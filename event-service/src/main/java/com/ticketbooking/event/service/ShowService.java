@@ -1,6 +1,7 @@
 package com.ticketbooking.event.service;
 
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import com.ticketbooking.event.domain.Seat;
 import com.ticketbooking.event.domain.Show;
 import com.ticketbooking.event.repository.SeatRepository;
 import com.ticketbooking.event.repository.ShowRepository;
@@ -45,5 +46,12 @@ public class ShowService {
                 show.getStartTime(),
                 show.getBasePrice(),
                 seats);
+    }
+
+    @Transactional
+    public void lockSeat(UUID showId, UUID seatId) {
+        Seat seat = seatRepository.findByIdAndShowIdForUpdate(seatId, showId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
+        seat.lock();
     }
 }

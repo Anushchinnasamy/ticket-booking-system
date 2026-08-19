@@ -25,5 +25,9 @@ application-local.yml
 # Logs
 *.log
 
+# Python (load-tests scripts)
+__pycache__/
+*.pyc
+
 # Docker volumes (local dev data)
 /docker-data/

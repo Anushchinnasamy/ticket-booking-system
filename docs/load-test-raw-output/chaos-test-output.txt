@@ -1,0 +1,53 @@
+Phase 12 automated chaos test
+============================================================
+
+=== Scenario 1: kill booking-service, verify payment-service's circuit breaker ===
+  Initial breaker state: CLOSED
+  Killing booking-service (PID 10852, port 8082)
+  booking-service is down. Hammering payment-service /payments/charge...
+    request 1: HTTP 500, 357ms
+    request 2: HTTP 500, 60ms
+    request 3: HTTP 500, 407ms
+    request 4: HTTP 500, 49ms
+    request 5: HTTP 500, 51ms
+    request 6: HTTP 503, 25ms
+    request 7: HTTP 503, 11ms
+    request 8: HTTP 503, 30ms
+    request 9: HTTP 503, 75ms
+    request 10: HTTP 503, 40ms
+    request 11: HTTP 503, 23ms
+    request 12: HTTP 503, 109ms
+    request 13: HTTP 503, 31ms
+    request 14: HTTP 503, 93ms
+    request 15: HTTP 503, 21ms
+  Breaker state after the burst: OPEN
+  PASS: breaker opened, worst-case latency 407ms (bounded, no hangs)
+  Restarting booking-service...
+  Starting booking-service...
+  booking-service is back up.
+  Waiting for the breaker to leave OPEN (wait-duration-in-open-state=10s)...
+  Breaker state: HALF_OPEN
+  Final breaker state: CLOSED
+  PASS: breaker recovered to CLOSED once booking-service came back.
+
+=== Scenario 2: kill payment-service mid-transaction, verify the stale-booking sweep ===
+  Restarting booking-service with a 1-minute hold TTL for a fast test...
+  Killing booking-service (PID 23152, port 8082)
+  Starting booking-service...
+  Using seat 1293a692-9ede-40d5-b22d-a417312b9e6b
+  Created booking 3cd69ee8-dbb7-479f-9052-06ea3727978a (PENDING)
+  Initiated charge (Payment d3d90e31-b58d-441a-8112-4d326a238322, status=INITIATED)
+  Killing payment-service (PID 23620, port 8083)
+  payment-service is down. Booking is orphaned: PENDING with an INITIATED payment.
+  Waiting for the stale-booking sweep (up to ~2 minutes: 1-min TTL + up to 60s sweep interval)...
+  Final booking status: CANCELLED
+  PASS: orphaned booking was auto-cancelled with zero payment-service involvement.
+  Restarting payment-service...
+  Starting payment-service...
+  Restarting booking-service with its normal hold TTL...
+  Killing booking-service (PID 15160, port 8082)
+  Starting booking-service...
+  Full recovery confirmed: both services healthy again.
+
+============================================================
+ALL CHAOS SCENARIOS PASSED

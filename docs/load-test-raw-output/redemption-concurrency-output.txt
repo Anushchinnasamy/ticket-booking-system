@@ -1,0 +1,19 @@
+Phase 12 redemption concurrency test
+============================================================
+Using seat 0809c398-3f5f-4f8c-98c7-f5aced23aabd
+Created booking 7194eff4-1b2b-4864-8e9b-62900bc3192a
+Payment verified SUCCESS -- booking should now be CONFIRMED and a ticket generating asynchronously
+Waiting for the ticket to be generated...
+Ticket ready. QR payload length: 252 chars
+
+Firing 20 concurrent redemption requests for the same ticket...
+
+=== Results ===
+Total requests: 20
+200 OK (redeemed): 1
+409 Conflict (already redeemed): 19
+Other (unexpected): 0
+
+Final booking status: CHECKED_IN
+
+PASS: exactly one redemption succeeded under concurrent contention, zero double-redemption.

@@ -10,6 +10,8 @@ import com.ticketbooking.common.event.BookingConfirmedEvent;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
 import com.ticketbooking.common.exception.ValidationException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,12 +38,14 @@ public class TicketService {
     private final TicketPdfGenerator pdfGenerator;
     private final TicketStorageService storageService;
     private final int shareTokenTtlHours;
+    private final MeterRegistry meterRegistry;
 
     public TicketService(TicketRepository ticketRepository, BookingRepository bookingRepository,
                           EventServiceClient eventServiceClient, TicketSigningService signingService,
                           QrCodeGenerator qrCodeGenerator, TicketPdfGenerator pdfGenerator,
                           TicketStorageService storageService,
-                          @Value("${ticket.share-token-ttl-hours}") int shareTokenTtlHours) {
+                          @Value("${ticket.share-token-ttl-hours}") int shareTokenTtlHours,
+                          MeterRegistry meterRegistry) {
         this.ticketRepository = ticketRepository;
         this.bookingRepository = bookingRepository;
         this.eventServiceClient = eventServiceClient;
@@ -50,6 +54,7 @@ public class TicketService {
         this.pdfGenerator = pdfGenerator;
         this.storageService = storageService;
         this.shareTokenTtlHours = shareTokenTtlHours;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -125,9 +130,17 @@ public class TicketService {
      */
     @Transactional
     public void redeem(String qrPayload) {
-        SignedTicketPayload payload = signingService.verify(qrPayload);
+        SignedTicketPayload payload;
+        try {
+            payload = signingService.verify(qrPayload);
+        } catch (ValidationException ex) {
+            rejectionCounter("invalid_signature").increment();
+            throw ex;
+        }
+
         Booking booking = findBookingOrThrow(payload.bookingId());
         if (!booking.getShowId().equals(payload.showId()) || !booking.getSeatId().equals(payload.seatId())) {
+            rejectionCounter("mismatch").increment();
             throw new ValidationException("Ticket QR does not match the booking it claims");
         }
 
@@ -135,10 +148,19 @@ public class TicketService {
         if (updated == 0) {
             Booking current = findBookingOrThrow(payload.bookingId());
             if (current.getStatus() == BookingStatus.CHECKED_IN) {
+                rejectionCounter("already_redeemed").increment();
                 throw new ConflictException("Ticket already redeemed: " + payload.bookingId());
             }
+            rejectionCounter("not_eligible").increment();
             throw new ConflictException("Booking is not eligible for check-in (status: " + current.getStatus() + ")");
         }
+    }
+
+    private Counter rejectionCounter(String reason) {
+        return Counter.builder("ticket_redemption_rejected")
+                .description("Ticket redemption attempts rejected, broken down by reason")
+                .tag("reason", reason)
+                .register(meterRegistry);
     }
 
     private String generateShareToken() {

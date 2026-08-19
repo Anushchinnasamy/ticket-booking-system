@@ -1,5 +1,7 @@
 package com.ticketbooking.booking.lock;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,21 +24,32 @@ public class SeatLockService {
 
     private final RedissonClient redissonClient;
     private final long holdTtlMinutes;
+    private final Counter lockContentionCounter;
 
     public SeatLockService(RedissonClient redissonClient,
-                            @Value("${booking.hold-ttl-minutes}") long holdTtlMinutes) {
+                            @Value("${booking.hold-ttl-minutes}") long holdTtlMinutes,
+                            MeterRegistry meterRegistry) {
         this.redissonClient = redissonClient;
         this.holdTtlMinutes = holdTtlMinutes;
+        this.lockContentionCounter = Counter.builder("seat_lock_contention")
+                .description("Number of tryLock calls that failed because another holder already had the seat locked")
+                .register(meterRegistry);
     }
 
+    /** False means someone else already holds this seat's lock — real contention, not an error. */
     public boolean tryLock(UUID showId, UUID seatId) {
         RLock lock = redissonClient.getLock(lockKey(showId, seatId));
+        boolean acquired;
         try {
-            return lock.tryLock(0, holdTtlMinutes, TimeUnit.MINUTES);
+            acquired = lock.tryLock(0, holdTtlMinutes, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+            acquired = false;
         }
+        if (!acquired) {
+            lockContentionCounter.increment();
+        }
+        return acquired;
     }
 
     public void unlock(UUID showId, UUID seatId) {

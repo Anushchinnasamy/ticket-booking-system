@@ -31,6 +31,18 @@ management:
   endpoint:
     health:
       show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
 
 event-service:
   base-url: http://localhost:8081

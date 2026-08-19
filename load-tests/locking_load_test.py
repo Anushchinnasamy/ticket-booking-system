@@ -24,13 +24,20 @@ import json
 import time
 import urllib.error
 import urllib.request
-import uuid
 
 EVENT_SERVICE_URL = "http://localhost:8081"
 BOOKING_SERVICE_URL = "http://localhost:8082"
+USER_SERVICE_URL = "http://localhost:8084"
 SHOW_ID = "33333333-3333-3333-3333-333333333301"  # "The Great Adventure" 10:00 - 50 seats
 SEAT_POOL_SIZE = 50
 TOTAL_REQUESTS = 500
+
+# Phase 5 added JWT auth to POST /bookings (this script predates that) — one
+# shared token is fine here, the test is about per-SEAT contention, not
+# per-user behavior, and hitting booking-service directly bypasses the
+# gateway's per-user rate limiter anyway.
+LOAD_TEST_EMAIL = "load-test@ticketbooking.local"
+LOAD_TEST_PASSWORD = "LoadTest123!"
 
 
 def get_json(url):
@@ -38,10 +45,12 @@ def get_json(url):
         return json.load(resp)
 
 
-def post_json(url, payload):
+def post_json(url, payload, token=None):
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST",
-                                  headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=data, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return resp.status, json.load(resp)
@@ -51,6 +60,17 @@ def post_json(url, payload):
             return e.code, json.loads(body)
         except json.JSONDecodeError:
             return e.code, {"raw": body}
+
+
+def get_access_token():
+    status, body = post_json(f"{USER_SERVICE_URL}/auth/register",
+                              {"email": LOAD_TEST_EMAIL, "password": LOAD_TEST_PASSWORD})
+    if status not in (200, 201):
+        status, body = post_json(f"{USER_SERVICE_URL}/auth/login",
+                                  {"email": LOAD_TEST_EMAIL, "password": LOAD_TEST_PASSWORD})
+    if status not in (200, 201):
+        raise RuntimeError(f"Could not obtain an access token: HTTP {status} {body}")
+    return body["accessToken"]
 
 
 def pick_available_seats(show_id, count):
@@ -64,14 +84,16 @@ def pick_available_seats(show_id, count):
     return available[:count]
 
 
-def fire_booking_request(show_id, seat_id):
-    user_id = str(uuid.uuid4())
-    payload = {"showId": show_id, "seatId": seat_id, "userId": user_id}
-    status, body = post_json(f"{BOOKING_SERVICE_URL}/bookings", payload)
+def fire_booking_request(show_id, seat_id, token):
+    payload = {"showId": show_id, "seatId": seat_id}
+    status, body = post_json(f"{BOOKING_SERVICE_URL}/bookings", payload, token=token)
     return status, body
 
 
 def main():
+    print("Obtaining an access token...")
+    token = get_access_token()
+
     print(f"Selecting {SEAT_POOL_SIZE} AVAILABLE seats from show {SHOW_ID}...")
     seat_pool = pick_available_seats(SHOW_ID, SEAT_POOL_SIZE)
 
@@ -83,7 +105,7 @@ def main():
     start = time.perf_counter()
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=TOTAL_REQUESTS) as executor:
-        futures = [executor.submit(fire_booking_request, SHOW_ID, seat_id) for seat_id in targets]
+        futures = [executor.submit(fire_booking_request, SHOW_ID, seat_id, token) for seat_id in targets]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
     elapsed = time.perf_counter() - start

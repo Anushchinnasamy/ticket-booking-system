@@ -28,6 +28,18 @@ management:
   endpoint:
     health:
       show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
 
 # Dev-only shared secret (same literal value must be set on event-service,
 # booking-service, payment-service, user-service so each can independently

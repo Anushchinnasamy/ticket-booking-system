@@ -9,6 +9,8 @@ import com.ticketbooking.common.event.BookingConfirmedEvent;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
 import com.ticketbooking.common.exception.ValidationException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -54,9 +56,11 @@ class TicketServiceTest {
     @Mock
     private TicketStorageService storageService;
 
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private TicketService newService() {
         return new TicketService(ticketRepository, bookingRepository, eventServiceClient, signingService,
-                qrCodeGenerator, pdfGenerator, storageService, 24);
+                qrCodeGenerator, pdfGenerator, storageService, 24, meterRegistry);
     }
 
     private static SeatDetails sampleSeat() {
@@ -204,6 +208,8 @@ class TicketServiceTest {
         assertThatThrownBy(() -> service.redeem("qr"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("already redeemed");
+        assertThat(meterRegistry.get("ticket_redemption_rejected").tag("reason", "already_redeemed")
+                .counter().count()).isEqualTo(1.0);
     }
 
     @Test
@@ -217,5 +223,18 @@ class TicketServiceTest {
 
         assertThatThrownBy(() -> service.redeem("qr")).isInstanceOf(ValidationException.class);
         verify(bookingRepository, never()).checkInIfConfirmed(any(), any());
+        assertThat(meterRegistry.get("ticket_redemption_rejected").tag("reason", "mismatch")
+                .counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void redeem_whenSignatureInvalid_throwsValidationExceptionAndCountsRejection() {
+        TicketService service = newService();
+        when(signingService.verify("bad-qr")).thenThrow(new ValidationException("Ticket QR signature is invalid"));
+
+        assertThatThrownBy(() -> service.redeem("bad-qr")).isInstanceOf(ValidationException.class);
+        verifyNoInteractions(bookingRepository);
+        assertThat(meterRegistry.get("ticket_redemption_rejected").tag("reason", "invalid_signature")
+                .counter().count()).isEqualTo(1.0);
     }
 }

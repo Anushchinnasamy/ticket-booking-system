@@ -1,0 +1,29 @@
+# Build output
+target/
+build/
+*.class
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+application-secrets.yml
+application-local.yml
+
+# Logs
+*.log
+
+# Docker volumes (local dev data)
+/docker-data/

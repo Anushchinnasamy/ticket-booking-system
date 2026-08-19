@@ -19,9 +19,31 @@ management:
   endpoint:
     health:
       show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakerevents
 
 booking-service:
   base-url: http://localhost:8082
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      booking-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        # A 404 here means booking-service answered correctly that the
+        # booking doesn't exist — a healthy response, not a sign it's down.
+        # Only real connectivity/timeout failures should count toward
+        # tripping the breaker.
+        ignore-exceptions:
+          - com.ticketbooking.common.exception.ResourceNotFoundException
 
 # Test-mode keys only — never commit real values here. Set via env vars
 # RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET (Spring relaxed binding maps these

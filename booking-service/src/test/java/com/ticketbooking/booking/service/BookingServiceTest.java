@@ -9,9 +9,10 @@ import com.ticketbooking.booking.web.dto.BookingResponse;
 import com.ticketbooking.booking.web.dto.CreateBookingRequest;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import io.github.resilience4j.retry.Retry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -21,6 +22,8 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -49,8 +53,29 @@ class BookingServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
-    @InjectMocks
-    private BookingService bookingService;
+    private final Retry kafkaPublishRetry = Retry.ofDefaults("test");
+    private final ScheduledExecutorService kafkaRetryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r);
+        t.setDaemon(true);
+        return t;
+    });
+
+    private BookingService newService() {
+        return new BookingService(bookingRepository, eventServiceClient, seatLockService, kafkaTemplate,
+                kafkaPublishRetry, kafkaRetryScheduler);
+    }
+
+    /**
+     * RetryingPublisher calls .whenComplete() on whatever KafkaTemplate.send
+     * returns — real KafkaTemplate never returns null, but an unstubbed
+     * Mockito mock does, which NPEs. Tests that care about a specific future
+     * (e.g. a never-completing one, to prove non-blocking) override this.
+     */
+    @BeforeEach
+    void stubKafkaSendDefault() {
+        lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+    }
 
     @Test
     void createBooking_whenLockAcquiredAndSeatClaimed_savesPendingBooking() {
@@ -62,7 +87,7 @@ class BookingServiceTest {
         when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
         when(bookingRepository.save(any(Booking.class))).thenReturn(saved);
 
-        BookingResponse result = bookingService.createBooking(request, userId);
+        BookingResponse result = newService().createBooking(request, userId);
 
         assertThat(result.showId()).isEqualTo(showId);
         assertThat(result.seatId()).isEqualTo(seatId);
@@ -81,7 +106,7 @@ class BookingServiceTest {
         CreateBookingRequest request = new CreateBookingRequest(showId, seatId);
         when(seatLockService.tryLock(showId, seatId)).thenReturn(false);
 
-        assertThatThrownBy(() -> bookingService.createBooking(request, userId))
+        assertThatThrownBy(() -> newService().createBooking(request, userId))
                 .isInstanceOf(ConflictException.class);
 
         verifyNoInteractions(eventServiceClient);
@@ -98,7 +123,7 @@ class BookingServiceTest {
         doThrow(new ConflictException("Seat is not available: " + seatId))
                 .when(eventServiceClient).claimSeat(showId, seatId);
 
-        assertThatThrownBy(() -> bookingService.createBooking(request, userId))
+        assertThatThrownBy(() -> newService().createBooking(request, userId))
                 .isInstanceOf(ConflictException.class);
 
         verify(seatLockService).unlock(showId, seatId);
@@ -114,7 +139,7 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        BookingResponse result = bookingService.getBooking(bookingId, userId, false);
+        BookingResponse result = newService().getBooking(bookingId, userId, false);
 
         assertThat(result.showId()).isEqualTo(showId);
         assertThat(result.status()).isEqualTo(BookingStatus.PENDING);
@@ -130,7 +155,7 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        BookingResponse result = bookingService.getBooking(bookingId, adminId, true);
+        BookingResponse result = newService().getBooking(bookingId, adminId, true);
 
         assertThat(result.showId()).isEqualTo(showId);
     }
@@ -145,7 +170,7 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        assertThatThrownBy(() -> bookingService.getBooking(bookingId, otherUserId, false))
+        assertThatThrownBy(() -> newService().getBooking(bookingId, otherUserId, false))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -154,7 +179,7 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> bookingService.getBooking(bookingId, UUID.randomUUID(), false))
+        assertThatThrownBy(() -> newService().getBooking(bookingId, UUID.randomUUID(), false))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -168,7 +193,7 @@ class BookingServiceTest {
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);
 
-        BookingResponse result = bookingService.confirmBooking(bookingId);
+        BookingResponse result = newService().confirmBooking(bookingId);
 
         assertThat(result.status()).isEqualTo(BookingStatus.CONFIRMED);
         verify(eventServiceClient).bookSeat(showId, seatId);
@@ -196,7 +221,7 @@ class BookingServiceTest {
         CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
         when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
 
-        assertTimeoutPreemptively(Duration.ofMillis(500), () -> bookingService.confirmBooking(bookingId));
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> newService().confirmBooking(bookingId));
     }
 
     @Test
@@ -209,7 +234,7 @@ class BookingServiceTest {
         booking.cancel();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        BookingResponse result = bookingService.confirmBooking(bookingId);
+        BookingResponse result = newService().confirmBooking(bookingId);
 
         assertThat(result.status()).isEqualTo(BookingStatus.CANCELLED);
         verifyNoInteractions(eventServiceClient);
@@ -227,7 +252,7 @@ class BookingServiceTest {
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);
 
-        BookingResponse result = bookingService.cancelBooking(bookingId);
+        BookingResponse result = newService().cancelBooking(bookingId);
 
         assertThat(result.status()).isEqualTo(BookingStatus.CANCELLED);
         verify(eventServiceClient).releaseSeat(showId, seatId);
@@ -248,7 +273,7 @@ class BookingServiceTest {
         CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
         when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
 
-        assertTimeoutPreemptively(Duration.ofMillis(500), () -> bookingService.cancelBooking(bookingId));
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> newService().cancelBooking(bookingId));
     }
 
     @Test
@@ -261,7 +286,7 @@ class BookingServiceTest {
         booking.confirm();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        BookingResponse result = bookingService.cancelBooking(bookingId);
+        BookingResponse result = newService().cancelBooking(bookingId);
 
         assertThat(result.status()).isEqualTo(BookingStatus.CONFIRMED);
         verifyNoInteractions(eventServiceClient);

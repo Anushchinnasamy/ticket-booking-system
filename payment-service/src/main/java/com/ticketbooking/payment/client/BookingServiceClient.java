@@ -1,6 +1,7 @@
 package com.ticketbooking.payment.client;
 
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -8,6 +9,17 @@ import org.springframework.web.client.RestClient;
 
 import java.util.UUID;
 
+/**
+ * The one real synchronous dependency payment-service has on another
+ * service — every call here sits on the critical path of charge/verify/fail.
+ * All three methods are behind the "booking-service" circuit breaker (see
+ * application.yml): if booking-service is down or hung, repeated fast
+ * failures (bounded by the RestClient read timeout configured in
+ * RestClientConfig) trip the breaker, and further calls fail immediately
+ * with CallNotPermittedException instead of piling up hung requests behind
+ * a dead dependency. See docs/adr/003-resilience-chaos-test.md for the live
+ * chaos run that proves this.
+ */
 @Component
 public class BookingServiceClient {
 
@@ -24,6 +36,7 @@ public class BookingServiceClient {
      * then applies unchanged, so payment-service never needs to see or
      * bypass that check itself.
      */
+    @CircuitBreaker(name = "booking-service")
     public BookingInfo getBooking(UUID bookingId, String authorizationHeader) {
         try {
             return restClient.get()
@@ -37,6 +50,7 @@ public class BookingServiceClient {
     }
 
     /** Called on successful payment: booking-service moves PENDING -> CONFIRMED and books the seat. */
+    @CircuitBreaker(name = "booking-service")
     public void confirmBooking(UUID bookingId) {
         try {
             restClient.post()
@@ -49,6 +63,7 @@ public class BookingServiceClient {
     }
 
     /** Compensating step on failed payment: releases the seat lock and cancels the booking. */
+    @CircuitBreaker(name = "booking-service")
     public void cancelBooking(UUID bookingId) {
         try {
             restClient.post()

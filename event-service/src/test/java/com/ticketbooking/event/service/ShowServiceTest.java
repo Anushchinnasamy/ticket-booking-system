@@ -13,9 +13,10 @@ import com.ticketbooking.event.domain.Venue;
 import com.ticketbooking.event.repository.SeatRepository;
 import com.ticketbooking.event.repository.ShowRepository;
 import com.ticketbooking.event.web.dto.SeatMapResponse;
+import io.github.resilience4j.retry.Retry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -27,6 +28,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,8 +53,28 @@ class ShowServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
-    @InjectMocks
-    private ShowService showService;
+    private final Retry kafkaPublishRetry = Retry.ofDefaults("test");
+    private final ScheduledExecutorService kafkaRetryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r);
+        t.setDaemon(true);
+        return t;
+    });
+
+    private ShowService newService() {
+        return new ShowService(showRepository, seatRepository, kafkaTemplate, kafkaPublishRetry, kafkaRetryScheduler);
+    }
+
+    /**
+     * RetryingPublisher calls .whenComplete() on whatever KafkaTemplate.send
+     * returns — real KafkaTemplate never returns null, but an unstubbed
+     * Mockito mock does, which NPEs. Tests that care about a specific future
+     * (e.g. a never-completing one, to prove non-blocking) override this.
+     */
+    @BeforeEach
+    void stubKafkaSendDefault() {
+        lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+    }
 
     @Test
     void getSeatMap_whenShowExists_returnsSeatsWithStatuses() {
@@ -64,7 +88,7 @@ class ShowServiceTest {
         when(showRepository.findById(showId)).thenReturn(Optional.of(show));
         when(seatRepository.findByShowIdOrderByPosition(showId)).thenReturn(List.of(seat));
 
-        SeatMapResponse result = showService.getSeatMap(showId);
+        SeatMapResponse result = newService().getSeatMap(showId);
 
         assertThat(result.eventTitle()).isEqualTo("The Great Adventure");
         assertThat(result.venueName()).isEqualTo("PVR Forum Mall");
@@ -78,7 +102,7 @@ class ShowServiceTest {
         UUID showId = UUID.randomUUID();
         when(showRepository.findById(showId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> showService.getSeatMap(showId))
+        assertThatThrownBy(() -> newService().getSeatMap(showId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -94,7 +118,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.of(seat));
 
-        showService.lockSeat(showId, seatId);
+        newService().lockSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
     }
@@ -111,7 +135,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.of(seat));
 
-        assertThatThrownBy(() -> showService.lockSeat(showId, seatId))
+        assertThatThrownBy(() -> newService().lockSeat(showId, seatId))
                 .isInstanceOf(ConflictException.class);
     }
 
@@ -121,7 +145,7 @@ class ShowServiceTest {
         UUID seatId = UUID.randomUUID();
         when(seatRepository.findByIdAndShowIdForUpdate(seatId, showId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> showService.lockSeat(showId, seatId))
+        assertThatThrownBy(() -> newService().lockSeat(showId, seatId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -133,7 +157,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        showService.claimSeat(showId, seatId);
+        newService().claimSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
@@ -153,7 +177,7 @@ class ShowServiceTest {
         CompletableFuture<Object> neverCompletes = new CompletableFuture<>();
         when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn((CompletableFuture) neverCompletes);
 
-        assertTimeoutPreemptively(Duration.ofMillis(500), () -> showService.claimSeat(showId, seatId));
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> newService().claimSeat(showId, seatId));
     }
 
     @Test
@@ -164,7 +188,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        assertThatThrownBy(() -> showService.claimSeat(showId, seatId))
+        assertThatThrownBy(() -> newService().claimSeat(showId, seatId))
                 .isInstanceOf(ConflictException.class);
     }
 
@@ -176,7 +200,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        showService.releaseSeat(showId, seatId);
+        newService().releaseSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
@@ -190,7 +214,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        showService.releaseSeat(showId, seatId);
+        newService().releaseSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
     }
@@ -203,7 +227,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        showService.bookSeat(showId, seatId);
+        newService().bookSeat(showId, seatId);
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.BOOKED);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
@@ -217,7 +241,7 @@ class ShowServiceTest {
 
         when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
 
-        assertThatThrownBy(() -> showService.bookSeat(showId, seatId))
+        assertThatThrownBy(() -> newService().bookSeat(showId, seatId))
                 .isInstanceOf(ConflictException.class);
     }
 

@@ -2,12 +2,14 @@ package com.ticketbooking.event.service;
 
 import com.ticketbooking.common.event.SeatStatusChangedEvent;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import com.ticketbooking.common.resilience.RetryingPublisher;
 import com.ticketbooking.event.domain.Seat;
 import com.ticketbooking.event.domain.Show;
 import com.ticketbooking.event.repository.SeatRepository;
 import com.ticketbooking.event.repository.ShowRepository;
 import com.ticketbooking.event.web.dto.SeatMapResponse;
 import com.ticketbooking.event.web.dto.SeatResponse;
+import io.github.resilience4j.retry.Retry;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 
 @Service
 @Transactional(readOnly = true)
@@ -25,12 +28,17 @@ public class ShowService {
     private final ShowRepository showRepository;
     private final SeatRepository seatRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final Retry kafkaPublishRetry;
+    private final ScheduledExecutorService kafkaRetryScheduler;
 
     public ShowService(ShowRepository showRepository, SeatRepository seatRepository,
-                        KafkaTemplate<String, Object> kafkaTemplate) {
+                        KafkaTemplate<String, Object> kafkaTemplate, Retry kafkaPublishRetry,
+                        ScheduledExecutorService kafkaRetryScheduler) {
         this.showRepository = showRepository;
         this.seatRepository = seatRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.kafkaPublishRetry = kafkaPublishRetry;
+        this.kafkaRetryScheduler = kafkaRetryScheduler;
     }
 
     public SeatMapResponse getSeatMap(UUID showId) {
@@ -101,7 +109,8 @@ public class ShowService {
      * blocks the caller on the broker or on any downstream consumer.
      */
     private void publishSeatStatusChanged(UUID showId, UUID seatId, String status) {
-        kafkaTemplate.send(TOPIC_SEAT_STATUS_CHANGED, seatId.toString(),
-                new SeatStatusChangedEvent(showId, seatId, status, Instant.now()));
+        RetryingPublisher.withRetry(() -> kafkaTemplate.send(TOPIC_SEAT_STATUS_CHANGED, seatId.toString(),
+                        new SeatStatusChangedEvent(showId, seatId, status, Instant.now())),
+                kafkaPublishRetry, kafkaRetryScheduler);
     }
 }

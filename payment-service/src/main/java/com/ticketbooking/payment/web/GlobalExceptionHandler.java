@@ -5,6 +5,7 @@ import com.ticketbooking.common.exception.ApplicationException;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
 import com.ticketbooking.payment.gateway.PaymentGatewayException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleGatewayFailure(PaymentGatewayException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ApiErrorResponse.of("PAYMENT_GATEWAY_ERROR", ex.getMessage()));
+    }
+
+    /**
+     * The booking-service circuit breaker is open — booking-service is down
+     * or timing out, and we're deliberately not even attempting the call
+     * rather than piling up hung requests behind a dead dependency. See
+     * docs/adr/003-resilience-chaos-test.md.
+     */
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ApiErrorResponse> handleCircuitOpen(CallNotPermittedException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of("SERVICE_UNAVAILABLE", "Booking service is temporarily unavailable"));
     }
 
     @ExceptionHandler(ApplicationException.class)

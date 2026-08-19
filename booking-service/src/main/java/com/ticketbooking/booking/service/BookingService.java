@@ -11,12 +11,15 @@ import com.ticketbooking.common.event.BookingCancelledEvent;
 import com.ticketbooking.common.event.BookingConfirmedEvent;
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import com.ticketbooking.common.resilience.RetryingPublisher;
+import io.github.resilience4j.retry.Retry;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 
 @Service
 public class BookingService {
@@ -28,13 +31,18 @@ public class BookingService {
     private final EventServiceClient eventServiceClient;
     private final SeatLockService seatLockService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final Retry kafkaPublishRetry;
+    private final ScheduledExecutorService kafkaRetryScheduler;
 
     public BookingService(BookingRepository bookingRepository, EventServiceClient eventServiceClient,
-                           SeatLockService seatLockService, KafkaTemplate<String, Object> kafkaTemplate) {
+                           SeatLockService seatLockService, KafkaTemplate<String, Object> kafkaTemplate,
+                           Retry kafkaPublishRetry, ScheduledExecutorService kafkaRetryScheduler) {
         this.bookingRepository = bookingRepository;
         this.eventServiceClient = eventServiceClient;
         this.seatLockService = seatLockService;
         this.kafkaTemplate = kafkaTemplate;
+        this.kafkaPublishRetry = kafkaPublishRetry;
+        this.kafkaRetryScheduler = kafkaRetryScheduler;
     }
 
     /**
@@ -103,9 +111,10 @@ public class BookingService {
             seatLockService.unlock(booking.getShowId(), booking.getSeatId());
             booking.confirm();
             booking = bookingRepository.save(booking);
-            kafkaTemplate.send(TOPIC_BOOKING_CONFIRMED, booking.getId().toString(),
-                    new BookingConfirmedEvent(booking.getId(), booking.getShowId(), booking.getSeatId(),
-                            booking.getUserId(), Instant.now()));
+            Booking finalBooking = booking;
+            RetryingPublisher.withRetry(() -> kafkaTemplate.send(TOPIC_BOOKING_CONFIRMED, finalBooking.getId().toString(),
+                    new BookingConfirmedEvent(finalBooking.getId(), finalBooking.getShowId(), finalBooking.getSeatId(),
+                            finalBooking.getUserId(), Instant.now())), kafkaPublishRetry, kafkaRetryScheduler);
         }
         return toResponse(booking);
     }
@@ -123,9 +132,10 @@ public class BookingService {
             seatLockService.forceUnlock(booking.getShowId(), booking.getSeatId());
             booking.cancel();
             booking = bookingRepository.save(booking);
-            kafkaTemplate.send(TOPIC_BOOKING_CANCELLED, booking.getId().toString(),
-                    new BookingCancelledEvent(booking.getId(), booking.getShowId(), booking.getSeatId(),
-                            booking.getUserId(), Instant.now()));
+            Booking finalBooking = booking;
+            RetryingPublisher.withRetry(() -> kafkaTemplate.send(TOPIC_BOOKING_CANCELLED, finalBooking.getId().toString(),
+                    new BookingCancelledEvent(finalBooking.getId(), finalBooking.getShowId(), finalBooking.getSeatId(),
+                            finalBooking.getUserId(), Instant.now())), kafkaPublishRetry, kafkaRetryScheduler);
         }
         return toResponse(booking);
     }

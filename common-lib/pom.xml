@@ -59,6 +59,16 @@
             <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- resilience4j-retry only (not resilience4j-spring-boot3): no
+             Spring auto-configuration side effects, just the Retry
+             primitive (pulls in resilience4j-core transitively), so every
+             service that depends on common-lib doesn't get anything extra
+             wired in just from this jar being on the classpath. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>2.2.0</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

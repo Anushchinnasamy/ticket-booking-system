@@ -2,6 +2,7 @@ package com.ticketbooking.event.service;
 
 import com.ticketbooking.common.exception.ConflictException;
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import com.ticketbooking.event.cache.SeatMapCacheService;
 import com.ticketbooking.event.domain.Event;
 import com.ticketbooking.event.domain.EventCategory;
 import com.ticketbooking.event.domain.Seat;
@@ -13,6 +14,7 @@ import com.ticketbooking.event.domain.Venue;
 import com.ticketbooking.event.repository.SeatRepository;
 import com.ticketbooking.event.repository.ShowRepository;
 import com.ticketbooking.event.web.dto.SeatMapResponse;
+import com.ticketbooking.event.web.dto.SeatResponse;
 import io.github.resilience4j.retry.Retry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +40,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +57,9 @@ class ShowServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Mock
+    private SeatMapCacheService seatMapCacheService;
+
     private final Retry kafkaPublishRetry = Retry.ofDefaults("test");
     private final ScheduledExecutorService kafkaRetryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r);
@@ -61,7 +68,8 @@ class ShowServiceTest {
     });
 
     private ShowService newService() {
-        return new ShowService(showRepository, seatRepository, kafkaTemplate, kafkaPublishRetry, kafkaRetryScheduler);
+        return new ShowService(showRepository, seatRepository, kafkaTemplate, kafkaPublishRetry, kafkaRetryScheduler,
+                seatMapCacheService);
     }
 
     /**
@@ -74,6 +82,12 @@ class ShowServiceTest {
     void stubKafkaSendDefault() {
         lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    /** Default: cache miss, so existing tests exercise the DB fallback path unless they override this. */
+    @BeforeEach
+    void stubCacheMissByDefault() {
+        lenient().when(seatMapCacheService.get(any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -95,6 +109,23 @@ class ShowServiceTest {
         assertThat(result.seats()).hasSize(1);
         assertThat(result.seats().get(0).status()).isEqualTo(SeatStatus.AVAILABLE);
         assertThat(result.seats().get(0).seatType()).isEqualTo(SeatType.PREMIUM);
+        verify(seatMapCacheService).put(eq(showId), any());
+    }
+
+    @Test
+    void getSeatMap_whenCacheHit_returnsCachedResponseWithoutQueryingDatabase() {
+        UUID showId = UUID.randomUUID();
+        SeatMapResponse cached = new SeatMapResponse(showId, "Cached Title", "Cached Venue",
+                Instant.parse("2026-09-01T10:00:00Z"), new BigDecimal("100.00"),
+                List.of(new SeatResponse(UUID.randomUUID(), "A", 1, SeatType.REGULAR,
+                        new BigDecimal("100.00"), SeatStatus.AVAILABLE)));
+        when(seatMapCacheService.get(showId)).thenReturn(Optional.of(cached));
+
+        SeatMapResponse result = newService().getSeatMap(showId);
+
+        assertThat(result).isSameAs(cached);
+        verifyNoInteractions(showRepository, seatRepository);
+        verify(seatMapCacheService, never()).put(any(), any());
     }
 
     @Test
@@ -161,6 +192,7 @@ class ShowServiceTest {
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
+        verify(seatMapCacheService).updateSeat(eq(showId), any());
     }
 
     /**
@@ -204,6 +236,7 @@ class ShowServiceTest {
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
+        verify(seatMapCacheService).updateSeat(eq(showId), any());
     }
 
     @Test
@@ -231,6 +264,7 @@ class ShowServiceTest {
 
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.BOOKED);
         verify(kafkaTemplate).send(eq("seat-status-changed"), anyString(), any());
+        verify(seatMapCacheService).updateSeat(eq(showId), any());
     }
 
     @Test

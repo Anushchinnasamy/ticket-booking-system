@@ -19,6 +19,18 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+seatmap:
+  cache:
+    ttl-seconds: 45
+
+logging:
+  level:
+    com.ticketbooking.event.cache: DEBUG
 
 management:
   endpoint:

@@ -1,6 +1,7 @@
 package com.ticketbooking.payment.client;
 
 import com.ticketbooking.common.exception.ResourceNotFoundException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -16,10 +17,18 @@ public class BookingServiceClient {
         this.restClient = bookingServiceRestClient;
     }
 
-    public BookingInfo getBooking(UUID bookingId) {
+    /**
+     * Forwards the caller's own bearer token rather than calling as an
+     * unauthenticated "internal" request — booking-service's normal
+     * ownership check (does this booking belong to the token's subject)
+     * then applies unchanged, so payment-service never needs to see or
+     * bypass that check itself.
+     */
+    public BookingInfo getBooking(UUID bookingId, String authorizationHeader) {
         try {
             return restClient.get()
                     .uri("/bookings/{id}", bookingId)
+                    .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                     .retrieve()
                     .body(BookingInfo.class);
         } catch (HttpClientErrorException.NotFound ex) {

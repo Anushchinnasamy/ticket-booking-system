@@ -5,6 +5,8 @@ import com.ticketbooking.booking.web.dto.BookingResponse;
 import com.ticketbooking.booking.web.dto.CreateBookingRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,13 +29,17 @@ public class BookingController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
-        return bookingService.createBooking(request);
+    public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request, Authentication authentication) {
+        return bookingService.createBooking(request, UUID.fromString(authentication.getName()));
     }
 
     @GetMapping("/{id}")
-    public BookingResponse getBooking(@PathVariable UUID id) {
-        return bookingService.getBooking(id);
+    public BookingResponse getBooking(@PathVariable UUID id, Authentication authentication) {
+        UUID requestingUserId = UUID.fromString(authentication.getName());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+        return bookingService.getBooking(id, requestingUserId, isAdmin);
     }
 
     /** Called by payment-service once a charge succeeds. */

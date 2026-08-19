@@ -8,6 +8,7 @@ import com.ticketbooking.payment.web.dto.PaymentResponse;
 import com.ticketbooking.payment.web.dto.VerifyRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,8 +33,11 @@ public class PaymentController {
     @PostMapping("/charge")
     @ResponseStatus(HttpStatus.CREATED)
     public ChargeResponse charge(@RequestHeader("Idempotency-Key") String idempotencyKey,
-                                  @Valid @RequestBody ChargeRequest request) {
-        return paymentService.charge(idempotencyKey, request);
+                                  @RequestHeader("Authorization") String authorization,
+                                  @Valid @RequestBody ChargeRequest request,
+                                  Authentication authentication) {
+        UUID callerUserId = UUID.fromString(authentication.getName());
+        return paymentService.charge(idempotencyKey, request, callerUserId, authorization);
     }
 
     @GetMapping("/{id}")

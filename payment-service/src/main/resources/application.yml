@@ -29,3 +29,8 @@ booking-service:
 razorpay:
   key-id: ${RAZORPAY_KEY_ID:}
   key-secret: ${RAZORPAY_KEY_SECRET:}
+
+# Dev-only shared secret — must match the literal value in user-service,
+# event-service, and booking-service. See user-service/application.yml.
+jwt:
+  secret: dev-only-shared-jwt-signing-secret-do-not-use-in-prod-1234567890

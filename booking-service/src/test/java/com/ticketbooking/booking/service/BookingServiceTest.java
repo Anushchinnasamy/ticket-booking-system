@@ -47,12 +47,12 @@ class BookingServiceTest {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
+        CreateBookingRequest request = new CreateBookingRequest(showId, seatId);
         Booking saved = new Booking(showId, seatId, userId);
         when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
         when(bookingRepository.save(any(Booking.class))).thenReturn(saved);
 
-        BookingResponse result = bookingService.createBooking(request);
+        BookingResponse result = bookingService.createBooking(request, userId);
 
         assertThat(result.showId()).isEqualTo(showId);
         assertThat(result.seatId()).isEqualTo(seatId);
@@ -68,10 +68,10 @@ class BookingServiceTest {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
+        CreateBookingRequest request = new CreateBookingRequest(showId, seatId);
         when(seatLockService.tryLock(showId, seatId)).thenReturn(false);
 
-        assertThatThrownBy(() -> bookingService.createBooking(request))
+        assertThatThrownBy(() -> bookingService.createBooking(request, userId))
                 .isInstanceOf(ConflictException.class);
 
         verifyNoInteractions(eventServiceClient);
@@ -83,12 +83,12 @@ class BookingServiceTest {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
+        CreateBookingRequest request = new CreateBookingRequest(showId, seatId);
         when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
         doThrow(new ConflictException("Seat is not available: " + seatId))
                 .when(eventServiceClient).claimSeat(showId, seatId);
 
-        assertThatThrownBy(() -> bookingService.createBooking(request))
+        assertThatThrownBy(() -> bookingService.createBooking(request, userId))
                 .isInstanceOf(ConflictException.class);
 
         verify(seatLockService).unlock(showId, seatId);
@@ -96,7 +96,7 @@ class BookingServiceTest {
     }
 
     @Test
-    void getBooking_whenFound_returnsResponse() {
+    void getBooking_whenOwner_returnsResponse() {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -104,10 +104,39 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
-        BookingResponse result = bookingService.getBooking(bookingId);
+        BookingResponse result = bookingService.getBooking(bookingId, userId, false);
 
         assertThat(result.showId()).isEqualTo(showId);
         assertThat(result.status()).isEqualTo(BookingStatus.PENDING);
+    }
+
+    @Test
+    void getBooking_whenAdmin_bypassesOwnershipCheck() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, ownerId);
+        UUID bookingId = UUID.randomUUID();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        BookingResponse result = bookingService.getBooking(bookingId, adminId, true);
+
+        assertThat(result.showId()).isEqualTo(showId);
+    }
+
+    @Test
+    void getBooking_whenNotOwnerAndNotAdmin_throwsResourceNotFoundException() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, ownerId);
+        UUID bookingId = UUID.randomUUID();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> bookingService.getBooking(bookingId, otherUserId, false))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -115,7 +144,7 @@ class BookingServiceTest {
         UUID bookingId = UUID.randomUUID();
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> bookingService.getBooking(bookingId))
+        assertThatThrownBy(() -> bookingService.getBooking(bookingId, UUID.randomUUID(), false))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

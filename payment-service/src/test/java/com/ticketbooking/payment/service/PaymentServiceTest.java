@@ -15,7 +15,6 @@ import com.ticketbooking.payment.web.dto.PaymentResponse;
 import com.ticketbooking.payment.web.dto.VerifyRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -39,6 +38,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
+    private static final String AUTH_HEADER = "Bearer test-token";
+
     @Mock
     private PaymentRepository paymentRepository;
 
@@ -58,16 +59,17 @@ class PaymentServiceTest {
     void charge_whenNewIdempotencyKey_createsRazorpayOrderAndSavesPayment() {
         paymentService = newService();
         UUID bookingId = UUID.randomUUID();
+        UUID callerUserId = UUID.randomUUID();
         ChargeRequest request = new ChargeRequest(bookingId, new BigDecimal("250.00"));
         String idempotencyKey = "idem-key-1";
 
         when(paymentRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
-        when(bookingServiceClient.getBooking(bookingId))
-                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "PENDING", Instant.now()));
+        when(bookingServiceClient.getBooking(bookingId, AUTH_HEADER))
+                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), callerUserId, "PENDING", Instant.now()));
         when(gatewayClient.createOrder(any(BigDecimal.class), anyString(), anyString())).thenReturn("order_test123");
         when(paymentRepository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ChargeResponse result = paymentService.charge(idempotencyKey, request);
+        ChargeResponse result = paymentService.charge(idempotencyKey, request, callerUserId, AUTH_HEADER);
 
         assertThat(result.razorpayOrderId()).isEqualTo("order_test123");
         assertThat(result.status()).isEqualTo(PaymentStatus.INITIATED);
@@ -79,6 +81,7 @@ class PaymentServiceTest {
     void charge_whenRetriedWithSameIdempotencyKey_neverCallsGatewayAgain_onlyOnePaymentRow() {
         paymentService = newService();
         UUID bookingId = UUID.randomUUID();
+        UUID callerUserId = UUID.randomUUID();
         ChargeRequest request = new ChargeRequest(bookingId, new BigDecimal("250.00"));
         String idempotencyKey = "idem-key-retry";
 
@@ -86,17 +89,17 @@ class PaymentServiceTest {
         when(paymentRepository.findByIdempotencyKey(idempotencyKey))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.empty());
-        when(bookingServiceClient.getBooking(bookingId))
-                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "PENDING", Instant.now()));
+        when(bookingServiceClient.getBooking(bookingId, AUTH_HEADER))
+                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), callerUserId, "PENDING", Instant.now()));
         when(gatewayClient.createOrder(any(BigDecimal.class), anyString(), anyString())).thenReturn("order_test123");
         Payment saved = new Payment(idempotencyKey, bookingId, request.amount(), "INR", "order_test123");
         when(paymentRepository.save(any(Payment.class))).thenReturn(saved);
 
-        ChargeResponse first = paymentService.charge(idempotencyKey, request);
+        ChargeResponse first = paymentService.charge(idempotencyKey, request, callerUserId, AUTH_HEADER);
 
         // Second call (the retry): the row now exists.
         when(paymentRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.of(saved));
-        ChargeResponse second = paymentService.charge(idempotencyKey, request);
+        ChargeResponse second = paymentService.charge(idempotencyKey, request, callerUserId, AUTH_HEADER);
 
         assertThat(first.razorpayOrderId()).isEqualTo(second.razorpayOrderId());
         verify(gatewayClient, times(1)).createOrder(any(BigDecimal.class), anyString(), anyString());
@@ -107,13 +110,32 @@ class PaymentServiceTest {
     void charge_whenBookingNotPending_throwsConflictWithoutCallingGateway() {
         paymentService = newService();
         UUID bookingId = UUID.randomUUID();
+        UUID callerUserId = UUID.randomUUID();
         ChargeRequest request = new ChargeRequest(bookingId, new BigDecimal("250.00"));
         when(paymentRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
-        when(bookingServiceClient.getBooking(bookingId))
-                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "CONFIRMED", Instant.now()));
+        when(bookingServiceClient.getBooking(bookingId, AUTH_HEADER))
+                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), callerUserId, "CONFIRMED", Instant.now()));
 
-        assertThatThrownBy(() -> paymentService.charge("idem-key-2", request))
+        assertThatThrownBy(() -> paymentService.charge("idem-key-2", request, callerUserId, AUTH_HEADER))
                 .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(gatewayClient);
+        verify(paymentRepository, never()).save(any(Payment.class));
+    }
+
+    @Test
+    void charge_whenCallerDoesNotOwnBooking_throwsResourceNotFound() {
+        paymentService = newService();
+        UUID bookingId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID callerUserId = UUID.randomUUID();
+        ChargeRequest request = new ChargeRequest(bookingId, new BigDecimal("250.00"));
+        when(paymentRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+        when(bookingServiceClient.getBooking(bookingId, AUTH_HEADER))
+                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), ownerId, "PENDING", Instant.now()));
+
+        assertThatThrownBy(() -> paymentService.charge("idem-key-owner", request, callerUserId, AUTH_HEADER))
+                .isInstanceOf(ResourceNotFoundException.class);
 
         verifyNoInteractions(gatewayClient);
         verify(paymentRepository, never()).save(any(Payment.class));
@@ -123,13 +145,14 @@ class PaymentServiceTest {
     void charge_whenConcurrentRaceOnSameKey_returnsTheWinningRowInsteadOfErroring() {
         paymentService = newService();
         UUID bookingId = UUID.randomUUID();
+        UUID callerUserId = UUID.randomUUID();
         ChargeRequest request = new ChargeRequest(bookingId, new BigDecimal("250.00"));
         String idempotencyKey = "idem-key-race";
 
         when(paymentRepository.findByIdempotencyKey(idempotencyKey))
                 .thenReturn(Optional.empty());
-        when(bookingServiceClient.getBooking(bookingId))
-                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "PENDING", Instant.now()));
+        when(bookingServiceClient.getBooking(bookingId, AUTH_HEADER))
+                .thenReturn(new BookingInfo(bookingId, UUID.randomUUID(), UUID.randomUUID(), callerUserId, "PENDING", Instant.now()));
         when(gatewayClient.createOrder(any(BigDecimal.class), anyString(), anyString())).thenReturn("order_raced");
         when(paymentRepository.save(any(Payment.class))).thenThrow(new DataIntegrityViolationException("duplicate key"));
         Payment winner = new Payment(idempotencyKey, bookingId, request.amount(), "INR", "order_raced");
@@ -137,7 +160,7 @@ class PaymentServiceTest {
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
 
-        ChargeResponse result = paymentService.charge(idempotencyKey, request);
+        ChargeResponse result = paymentService.charge(idempotencyKey, request, callerUserId, AUTH_HEADER);
 
         assertThat(result.razorpayOrderId()).isEqualTo("order_raced");
     }

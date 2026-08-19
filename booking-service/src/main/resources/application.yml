@@ -29,3 +29,8 @@ redis:
 
 booking:
   hold-ttl-minutes: 5
+
+# Dev-only shared secret — must match the literal value in user-service,
+# event-service, and payment-service. See user-service/application.yml.
+jwt:
+  secret: dev-only-shared-jwt-signing-secret-do-not-use-in-prod-1234567890

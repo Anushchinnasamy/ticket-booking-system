@@ -40,7 +40,7 @@ public class BookingService {
      * {@link #cancelBooking} once payment-service resolves the charge, or by
      * the stale-booking sweep if the hold expires unconfirmed.
      */
-    public BookingResponse createBooking(CreateBookingRequest request) {
+    public BookingResponse createBooking(CreateBookingRequest request, UUID userId) {
         UUID showId = request.showId();
         UUID seatId = request.seatId();
 
@@ -55,14 +55,23 @@ public class BookingService {
             throw ex;
         }
 
-        Booking booking = new Booking(showId, seatId, request.userId());
+        Booking booking = new Booking(showId, seatId, userId);
         Booking saved = bookingRepository.save(booking);
         return toResponse(saved);
     }
 
+    /**
+     * Non-owners get a 404, not a 403 — same anti-enumeration reasoning used
+     * throughout user-service: don't confirm a booking ID exists to someone
+     * who isn't allowed to see it. ADMIN bypasses the ownership check.
+     */
     @Transactional(readOnly = true)
-    public BookingResponse getBooking(UUID id) {
-        return toResponse(findOrThrow(id));
+    public BookingResponse getBooking(UUID id, UUID requestingUserId, boolean isAdmin) {
+        Booking booking = findOrThrow(id);
+        if (!isAdmin && !booking.getUserId().equals(requestingUserId)) {
+            throw new ResourceNotFoundException("Booking not found: " + id);
+        }
+        return toResponse(booking);
     }
 
     /**

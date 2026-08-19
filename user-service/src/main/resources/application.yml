@@ -10,10 +10,50 @@ spring:
     password: appuser
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     open-in-view: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 management:
   endpoint:
     health:
       show-details: never
+
+# Dev-only shared secret (same literal value must be set on event-service,
+# booking-service, payment-service, user-service so each can independently
+# verify tokens user-service issues). In production this comes from a
+# secrets manager, not a checked-in default.
+jwt:
+  secret: dev-only-shared-jwt-signing-secret-do-not-use-in-prod-1234567890
+  access-token-ttl-minutes: 15
+  refresh-token-ttl-days: 7
+
+otp:
+  ttl-minutes: 5
+  rate-limit:
+    max-requests: 3
+    window-minutes: 10
+
+password-reset:
+  ttl-minutes: 15
+  rate-limit:
+    max-requests: 3
+    window-minutes: 60
+
+# Seeded on startup if no user with this email exists yet — lets the DoD's
+# "role-gated admin endpoints reject non-admins" be tested without a manual
+# promote-to-admin step. Dev-only credentials, not meant to survive to prod.
+admin:
+  seed:
+    email: admin@ticketbooking.local
+    password: AdminPass123!

@@ -45,14 +45,24 @@ public class PaymentService {
      * Not wrapped in a transaction: the booking lookup and the Razorpay order
      * creation are both network round trips that must resolve before any
      * local row is written.
+     *
+     * <p>{@code authorizationHeader} is the caller's own bearer token,
+     * forwarded to booking-service so its normal ownership check applies —
+     * see {@link BookingServiceClient#getBooking}. A caller who doesn't own
+     * the booking gets the same 404 booking-service itself would give a
+     * non-owner, not a 403 — consistent with the anti-enumeration approach
+     * used throughout this system.
      */
-    public ChargeResponse charge(String idempotencyKey, ChargeRequest request) {
+    public ChargeResponse charge(String idempotencyKey, ChargeRequest request, UUID callerUserId, String authorizationHeader) {
         Optional<Payment> existing = paymentRepository.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
             return toChargeResponse(existing.get());
         }
 
-        BookingInfo booking = bookingServiceClient.getBooking(request.bookingId());
+        BookingInfo booking = bookingServiceClient.getBooking(request.bookingId(), authorizationHeader);
+        if (!booking.userId().equals(callerUserId)) {
+            throw new ResourceNotFoundException("Booking not found: " + request.bookingId());
+        }
         if (!"PENDING".equals(booking.status())) {
             throw new ConflictException("Booking is not PENDING: " + request.bookingId());
         }

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Service — Checkout Test Harness</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  pre { background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+  .ok { color: #0a7d2c; }
+  .err { color: #b3261e; }
+  button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h2>Payment Service — Checkout Test Harness</h2>
+<p>
+  <strong>Not a product frontend.</strong> This page exists only to manually/E2E-verify the
+  real Razorpay integration for Phase 4, by driving their actual Checkout.js widget with
+  test-mode card numbers. See docs/build-plan.md Phase 4 and docs/adr/ for context.
+</p>
+<p>
+  Params expected in the URL query string: <code>paymentId</code>, <code>orderId</code>,
+  <code>amount</code> (paise), <code>currency</code>, <code>keyId</code>.
+</p>
+<button id="pay-btn">Open Razorpay Checkout</button>
+<pre id="log">Waiting...</pre>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+function qs(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function log(obj) {
+  document.getElementById('log').textContent = JSON.stringify(obj, null, 2);
+}
+
+const paymentId = qs('paymentId');
+const orderId = qs('orderId');
+const amount = qs('amount');
+const currency = qs('currency') || 'INR';
+const keyId = qs('keyId');
+
+document.getElementById('pay-btn').addEventListener('click', function () {
+  if (!paymentId || !orderId || !keyId) {
+    log({ error: 'Missing required query params: paymentId, orderId, keyId' });
+    return;
+  }
+
+  const options = {
+    key: keyId,
+    order_id: orderId,
+    amount: amount,
+    currency: currency,
+    name: 'Ticket Booking System (test)',
+    description: 'Phase 4 checkout verification',
+    handler: function (response) {
+      log({ stage: 'razorpay-success-callback', response: response });
+      fetch('/payments/' + paymentId + '/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          razorpayOrderId: response.razorpay_order_id,
+          razorpayPaymentId: response.razorpay_payment_id,
+          razorpaySignature: response.razorpay_signature
+        })
+      })
+        .then(function (r) { return r.json().then(function (body) { return { status: r.status, body: body }; }); })
+        .then(function (result) { log({ stage: 'verify-response', result: result }); })
+        .catch(function (err) { log({ stage: 'verify-error', error: String(err) }); });
+    },
+    modal: {
+      ondismiss: function () {
+        log({ stage: 'checkout-dismissed-by-user' });
+      }
+    }
+  };
+
+  const rzp = new Razorpay(options);
+
+  rzp.on('payment.failed', function (response) {
+    log({ stage: 'razorpay-failure-callback', response: response.error });
+    fetch('/payments/' + paymentId + '/fail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: response.error.description || response.error.reason })
+    })
+      .then(function (r) { return r.json().then(function (body) { return { status: r.status, body: body }; }); })
+      .then(function (result) { log({ stage: 'fail-response', result: result }); })
+      .catch(function (err) { log({ stage: 'fail-error', error: String(err) }); });
+  });
+
+  rzp.open();
+});
+</script>
+</body>
+</html>

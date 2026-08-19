@@ -35,4 +35,16 @@ public class BookingController {
     public BookingResponse getBooking(@PathVariable UUID id) {
         return bookingService.getBooking(id);
     }
+
+    /** Called by payment-service once a charge succeeds. */
+    @PostMapping("/{id}/confirm")
+    public BookingResponse confirmBooking(@PathVariable UUID id) {
+        return bookingService.confirmBooking(id);
+    }
+
+    /** Called by payment-service on a failed charge (the compensating step). */
+    @PostMapping("/{id}/cancel")
+    public BookingResponse cancelBooking(@PathVariable UUID id) {
+        return bookingService.cancelBooking(id);
+    }
 }

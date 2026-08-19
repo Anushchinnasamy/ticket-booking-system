@@ -165,6 +165,31 @@ class ShowServiceTest {
         assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
     }
 
+    @Test
+    void bookSeat_whenLocked_transitionsToBooked() {
+        Seat seat = newSeat(SeatStatus.LOCKED);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        showService.bookSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.BOOKED);
+    }
+
+    @Test
+    void bookSeat_whenNotLocked_throwsConflictException() {
+        Seat seat = newSeat(SeatStatus.AVAILABLE);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        assertThatThrownBy(() -> showService.bookSeat(showId, seatId))
+                .isInstanceOf(ConflictException.class);
+    }
+
     private static Seat newSeat(SeatStatus status) {
         Event event = new Event("The Great Adventure", EventCategory.MOVIE, "An action-packed journey.");
         Venue venue = new Venue("PVR Forum Mall", "Bengaluru", "Koramangala");

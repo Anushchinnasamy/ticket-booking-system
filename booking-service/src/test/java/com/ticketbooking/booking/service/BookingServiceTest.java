@@ -118,4 +118,76 @@ class BookingServiceTest {
         assertThatThrownBy(() -> bookingService.getBooking(bookingId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void confirmBooking_whenPending_booksSeatUnlocksAndConfirms() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, userId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+
+        BookingResponse result = bookingService.confirmBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CONFIRMED);
+        verify(eventServiceClient).bookSeat(showId, seatId);
+        verify(seatLockService).unlock(showId, seatId);
+        verify(bookingRepository).save(booking);
+    }
+
+    @Test
+    void confirmBooking_whenNotPending_isNoOpAndSkipsSideEffects() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, userId);
+        booking.cancel();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        BookingResponse result = bookingService.confirmBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CANCELLED);
+        verifyNoInteractions(eventServiceClient);
+        verifyNoInteractions(seatLockService);
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    void cancelBooking_whenPending_releasesSeatForceUnlocksAndCancels() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, userId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+
+        BookingResponse result = bookingService.cancelBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CANCELLED);
+        verify(eventServiceClient).releaseSeat(showId, seatId);
+        verify(seatLockService).forceUnlock(showId, seatId);
+        verify(bookingRepository).save(booking);
+    }
+
+    @Test
+    void cancelBooking_whenAlreadyConfirmed_doesNotReleaseTheSeat() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = new Booking(showId, seatId, userId);
+        booking.confirm();
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+        BookingResponse result = bookingService.cancelBooking(bookingId);
+
+        assertThat(result.status()).isEqualTo(BookingStatus.CONFIRMED);
+        verifyNoInteractions(eventServiceClient);
+        verifyNoInteractions(seatLockService);
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
 }

@@ -1,11 +1,8 @@
 package com.ticketbooking.booking.service;
 
-import com.ticketbooking.booking.client.EventServiceClient;
 import com.ticketbooking.booking.domain.Booking;
 import com.ticketbooking.booking.domain.BookingStatus;
-import com.ticketbooking.booking.lock.SeatLockService;
 import com.ticketbooking.booking.repository.BookingRepository;
-import com.ticketbooking.common.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -15,9 +12,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,15 +25,11 @@ class StaleBookingSweeperTest {
     private BookingRepository bookingRepository;
 
     @Mock
-    private EventServiceClient eventServiceClient;
-
-    @Mock
-    private SeatLockService seatLockService;
+    private BookingService bookingService;
 
     @Test
-    void releaseExpiredHolds_cancelsStaleBookingsAndReleasesSeats() {
-        StaleBookingSweeper sweeper = new StaleBookingSweeper(
-                bookingRepository, eventServiceClient, seatLockService, 5);
+    void releaseExpiredHolds_delegatesCancellationToBookingService() {
+        StaleBookingSweeper sweeper = new StaleBookingSweeper(bookingRepository, bookingService, 5);
 
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
@@ -48,42 +41,36 @@ class StaleBookingSweeperTest {
 
         sweeper.releaseExpiredHolds();
 
-        assertThat(stale.getStatus()).isEqualTo(BookingStatus.CANCELLED);
-        verify(eventServiceClient).releaseSeat(showId, seatId);
-        verify(seatLockService).forceUnlock(showId, seatId);
-        verify(bookingRepository).saveAll(List.of(stale));
+        verify(bookingService).cancelBooking(stale.getId());
     }
 
     @Test
     void releaseExpiredHolds_whenNoneStale_doesNothing() {
-        StaleBookingSweeper sweeper = new StaleBookingSweeper(
-                bookingRepository, eventServiceClient, seatLockService, 5);
+        StaleBookingSweeper sweeper = new StaleBookingSweeper(bookingRepository, bookingService, 5);
         when(bookingRepository.findByStatusAndCreatedAtBefore(
                 ArgumentMatchers.eq(BookingStatus.PENDING), ArgumentMatchers.any()))
                 .thenReturn(List.of());
 
         sweeper.releaseExpiredHolds();
 
-        verify(bookingRepository, never()).saveAll(ArgumentMatchers.anyList());
+        verify(bookingService, never()).cancelBooking(ArgumentMatchers.any());
     }
 
     @Test
-    void releaseExpiredHolds_whenSeatAlreadyGone_stillCancelsBooking() {
-        StaleBookingSweeper sweeper = new StaleBookingSweeper(
-                bookingRepository, eventServiceClient, seatLockService, 5);
+    void releaseExpiredHolds_whenOneFails_stillProcessesTheRest() {
+        StaleBookingSweeper sweeper = new StaleBookingSweeper(bookingRepository, bookingService, 5);
 
-        UUID showId = UUID.randomUUID();
-        UUID seatId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        Booking stale = new Booking(showId, seatId, userId);
+        Booking failing = new Booking(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        Booking succeeding = new Booking(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         when(bookingRepository.findByStatusAndCreatedAtBefore(
                 ArgumentMatchers.eq(BookingStatus.PENDING), ArgumentMatchers.any()))
-                .thenReturn(List.of(stale));
-        doThrow(new ResourceNotFoundException("gone")).when(eventServiceClient).releaseSeat(showId, seatId);
+                .thenReturn(List.of(failing, succeeding));
+        doThrow(new RuntimeException("event-service unreachable"))
+                .doReturn(null)
+                .when(bookingService).cancelBooking(ArgumentMatchers.any());
 
         sweeper.releaseExpiredHolds();
 
-        assertThat(stale.getStatus()).isEqualTo(BookingStatus.CANCELLED);
-        verify(seatLockService).forceUnlock(showId, seatId);
+        verify(bookingService, times(2)).cancelBooking(ArgumentMatchers.any());
     }
 }

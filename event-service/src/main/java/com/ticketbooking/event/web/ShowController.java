@@ -58,4 +58,14 @@ public class ShowController {
     public void releaseSeat(@PathVariable UUID showId, @PathVariable UUID seatId) {
         showService.releaseSeat(showId, seatId);
     }
+
+    /**
+     * Internal endpoint called by booking-service once payment-service
+     * confirms a successful charge.
+     */
+    @PostMapping("/{showId}/seats/{seatId}/book")
+    @ResponseStatus(HttpStatus.OK)
+    public void bookSeat(@PathVariable UUID showId, @PathVariable UUID seatId) {
+        showService.bookSeat(showId, seatId);
+    }
 }

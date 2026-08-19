@@ -76,4 +76,12 @@ public class ShowService {
                 .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
         seat.release();
     }
+
+    /** Called by booking-service once payment succeeds: finalizes LOCKED -> BOOKED. */
+    @Transactional
+    public void bookSeat(UUID showId, UUID seatId) {
+        Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
+        seat.book();
+    }
 }

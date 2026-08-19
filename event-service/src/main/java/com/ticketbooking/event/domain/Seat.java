@@ -102,4 +102,12 @@ public class Seat {
             status = SeatStatus.AVAILABLE;
         }
     }
+
+    /** Final transition on successful payment: LOCKED -> BOOKED. */
+    public void book() {
+        if (status != SeatStatus.LOCKED) {
+            throw new ConflictException("Seat is not locked, cannot book: " + id);
+        }
+        status = SeatStatus.BOOKED;
+    }
 }

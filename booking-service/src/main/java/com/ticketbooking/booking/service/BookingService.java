@@ -2,6 +2,7 @@ package com.ticketbooking.booking.service;
 
 import com.ticketbooking.booking.client.EventServiceClient;
 import com.ticketbooking.booking.domain.Booking;
+import com.ticketbooking.booking.domain.BookingStatus;
 import com.ticketbooking.booking.lock.SeatLockService;
 import com.ticketbooking.booking.repository.BookingRepository;
 import com.ticketbooking.booking.web.dto.BookingResponse;
@@ -35,8 +36,9 @@ public class BookingService {
      *
      * <p>The Redis lock is deliberately NOT released on success — it is held
      * for its full TTL as the seat reservation itself, not just a mutex
-     * around this one write. It's released by the stale-booking sweep if the
-     * hold expires, or (in a future phase) on payment confirm/cancel.
+     * around this one write. It's released by {@link #confirmBooking} /
+     * {@link #cancelBooking} once payment-service resolves the charge, or by
+     * the stale-booking sweep if the hold expires unconfirmed.
      */
     public BookingResponse createBooking(CreateBookingRequest request) {
         UUID showId = request.showId();
@@ -60,9 +62,46 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public BookingResponse getBooking(UUID id) {
-        Booking booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
+        return toResponse(findOrThrow(id));
+    }
+
+    /**
+     * Called by payment-service once a charge succeeds. Only acts on a
+     * still-PENDING booking — guarding the status check before touching the
+     * seat is what stops a retried confirm call from re-running side effects
+     * against a booking that's already CONFIRMED.
+     */
+    public BookingResponse confirmBooking(UUID id) {
+        Booking booking = findOrThrow(id);
+        if (booking.getStatus() == BookingStatus.PENDING) {
+            eventServiceClient.bookSeat(booking.getShowId(), booking.getSeatId());
+            seatLockService.unlock(booking.getShowId(), booking.getSeatId());
+            booking.confirm();
+            booking = bookingRepository.save(booking);
+        }
         return toResponse(booking);
+    }
+
+    /**
+     * Compensating step called by payment-service on a failed charge, and by
+     * the stale-booking sweep on an expired hold. Only acts on a still-PENDING
+     * booking — releasing the seat for a booking that's already CONFIRMED
+     * would incorrectly free a genuinely booked seat.
+     */
+    public BookingResponse cancelBooking(UUID id) {
+        Booking booking = findOrThrow(id);
+        if (booking.getStatus() == BookingStatus.PENDING) {
+            eventServiceClient.releaseSeat(booking.getShowId(), booking.getSeatId());
+            seatLockService.forceUnlock(booking.getShowId(), booking.getSeatId());
+            booking.cancel();
+            booking = bookingRepository.save(booking);
+        }
+        return toResponse(booking);
+    }
+
+    private Booking findOrThrow(UUID id) {
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
     }
 
     private BookingResponse toResponse(Booking booking) {

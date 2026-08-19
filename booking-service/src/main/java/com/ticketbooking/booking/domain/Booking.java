@@ -107,4 +107,15 @@ public class Booking {
             status = BookingStatus.CANCELLED;
         }
     }
+
+    /**
+     * Tolerant transition on successful payment: only confirms a still-PENDING
+     * booking, otherwise a no-op — keeps the endpoint safely callable more
+     * than once (e.g. a retried payment-verification request).
+     */
+    public void confirm() {
+        if (status == BookingStatus.PENDING) {
+            status = BookingStatus.CONFIRMED;
+        }
+    }
 }

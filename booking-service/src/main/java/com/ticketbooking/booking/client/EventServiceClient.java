@@ -51,4 +51,18 @@ public class EventServiceClient {
             throw new ResourceNotFoundException("Show or seat not found: " + showId + "/" + seatId);
         }
     }
+
+    /** Finalizes a seat as BOOKED. Called once payment-service confirms a successful charge. */
+    public void bookSeat(UUID showId, UUID seatId) {
+        try {
+            restClient.post()
+                    .uri("/shows/{showId}/seats/{seatId}/book", showId, seatId)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (HttpClientErrorException.Conflict ex) {
+            throw new ConflictException("Seat is not locked, cannot book: " + seatId);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Show or seat not found: " + showId + "/" + seatId);
+        }
+    }
 }

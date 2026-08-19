@@ -19,6 +19,13 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: booking-service-ticketing
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.ticketbooking.common.event
 
 management:
   endpoint:
@@ -39,3 +46,14 @@ booking:
 # event-service, and payment-service. See user-service/application.yml.
 jwt:
   secret: dev-only-shared-jwt-signing-secret-do-not-use-in-prod-1234567890
+
+ticket:
+  # Dev-only signing secret for QR payloads (HMAC-SHA256). Only booking-service
+  # itself ever needs to know this — no other service verifies ticket QRs.
+  qr-secret: dev-only-ticket-qr-signing-secret-do-not-use-in-prod-9876543210
+  share-token-ttl-hours: 24
+  storage:
+    endpoint: http://localhost:9000
+    access-key: ${MINIO_ACCESS_KEY:ticketbooking}
+    secret-key: ${MINIO_SECRET_KEY:ticketbooking123}
+    bucket: tickets

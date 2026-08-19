@@ -31,6 +31,14 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # Actuator's default mail indicator opens a real SMTP connection on every
+    # /actuator/health call, which Gmail throttles under repeated polling
+    # ("454 4.7.0 Too many login attempts"). Email sending itself
+    # (JavaMailSender.send) is unaffected — this only disables the noisy
+    # per-poll connection check, not real delivery.
+    mail:
+      enabled: false
 
 user-service:
   base-url: http://localhost:8084

@@ -28,13 +28,34 @@ public class ShowController {
     }
 
     /**
-     * Internal endpoint called by booking-service to atomically claim a seat
-     * before creating a booking. The actual correctness guarantee comes from
-     * the {@code SELECT ... FOR UPDATE} in {@link ShowService#lockSeat}.
+     * Phase 2 baseline (see docs/adr/001-locking-strategy.md), kept as a
+     * working reference implementation. No longer called by booking-service.
      */
     @PostMapping("/{showId}/seats/{seatId}/lock")
     @ResponseStatus(HttpStatus.OK)
     public void lockSeat(@PathVariable UUID showId, @PathVariable UUID seatId) {
         showService.lockSeat(showId, seatId);
+    }
+
+    /**
+     * Internal endpoint called by booking-service once it already holds the
+     * Redis distributed lock for this seat — see SeatLockService in
+     * booking-service. No DB-level locking here; the caller's Redis lock is
+     * what guarantees exclusivity.
+     */
+    @PostMapping("/{showId}/seats/{seatId}/claim")
+    @ResponseStatus(HttpStatus.OK)
+    public void claimSeat(@PathVariable UUID showId, @PathVariable UUID seatId) {
+        showService.claimSeat(showId, seatId);
+    }
+
+    /**
+     * Internal endpoint called by booking-service's stale-booking sweep to
+     * release a seat whose reservation hold expired without confirmation.
+     */
+    @PostMapping("/{showId}/seats/{seatId}/release")
+    @ResponseStatus(HttpStatus.OK)
+    public void releaseSeat(@PathVariable UUID showId, @PathVariable UUID seatId) {
+        showService.releaseSeat(showId, seatId);
     }
 }

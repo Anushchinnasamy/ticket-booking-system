@@ -91,4 +91,15 @@ public class Seat {
         }
         status = SeatStatus.LOCKED;
     }
+
+    /**
+     * Tolerant release used by cleanup paths (the stale-booking sweep): only
+     * transitions LOCKED -> AVAILABLE, otherwise a no-op, since the goal is
+     * "make sure it's free," not asserting a specific prior state.
+     */
+    public void release() {
+        if (status == SeatStatus.LOCKED) {
+            status = SeatStatus.AVAILABLE;
+        }
+    }
 }

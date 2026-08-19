@@ -96,4 +96,15 @@ public class Booking {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    /**
+     * Tolerant transition used by the stale-booking sweep: only cancels a
+     * still-PENDING hold, otherwise a no-op (a booking already CONFIRMED by
+     * the time the sweep runs should not be cancelled out from under it).
+     */
+    public void cancel() {
+        if (status == BookingStatus.PENDING) {
+            status = BookingStatus.CANCELLED;
+        }
+    }
 }

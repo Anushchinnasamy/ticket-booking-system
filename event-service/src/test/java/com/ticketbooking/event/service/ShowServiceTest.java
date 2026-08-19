@@ -113,4 +113,63 @@ class ShowServiceTest {
         assertThatThrownBy(() -> showService.lockSeat(showId, seatId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void claimSeat_whenAvailable_transitionsToLocked() {
+        Seat seat = newSeat(SeatStatus.AVAILABLE);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        showService.claimSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.LOCKED);
+    }
+
+    @Test
+    void claimSeat_whenAlreadyLocked_throwsConflictException() {
+        Seat seat = newSeat(SeatStatus.LOCKED);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        assertThatThrownBy(() -> showService.claimSeat(showId, seatId))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void releaseSeat_whenLocked_transitionsToAvailable() {
+        Seat seat = newSeat(SeatStatus.LOCKED);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        showService.releaseSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
+    }
+
+    @Test
+    void releaseSeat_whenAlreadyAvailable_isNoOp() {
+        Seat seat = newSeat(SeatStatus.AVAILABLE);
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+
+        when(seatRepository.findByIdAndShowId(seatId, showId)).thenReturn(Optional.of(seat));
+
+        showService.releaseSeat(showId, seatId);
+
+        assertThat(seat.getStatus()).isEqualTo(SeatStatus.AVAILABLE);
+    }
+
+    private static Seat newSeat(SeatStatus status) {
+        Event event = new Event("The Great Adventure", EventCategory.MOVIE, "An action-packed journey.");
+        Venue venue = new Venue("PVR Forum Mall", "Bengaluru", "Koramangala");
+        Show show = new Show(event, venue, Instant.parse("2026-09-01T10:00:00Z"), new BigDecimal("250.00"));
+        SeatMap seatMap = new SeatMap(show);
+        return new Seat(seatMap, "1", 1, SeatType.REGULAR, new BigDecimal("250.00"), status);
+    }
 }

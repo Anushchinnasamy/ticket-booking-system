@@ -3,6 +3,7 @@ package com.ticketbooking.booking.service;
 import com.ticketbooking.booking.client.EventServiceClient;
 import com.ticketbooking.booking.domain.Booking;
 import com.ticketbooking.booking.domain.BookingStatus;
+import com.ticketbooking.booking.lock.SeatLockService;
 import com.ticketbooking.booking.repository.BookingRepository;
 import com.ticketbooking.booking.web.dto.BookingResponse;
 import com.ticketbooking.booking.web.dto.CreateBookingRequest;
@@ -21,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -34,16 +36,20 @@ class BookingServiceTest {
     @Mock
     private EventServiceClient eventServiceClient;
 
+    @Mock
+    private SeatLockService seatLockService;
+
     @InjectMocks
     private BookingService bookingService;
 
     @Test
-    void createBooking_whenSeatLocksSuccessfully_savesPendingBooking() {
+    void createBooking_whenLockAcquiredAndSeatClaimed_savesPendingBooking() {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
         Booking saved = new Booking(showId, seatId, userId);
+        when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
         when(bookingRepository.save(any(Booking.class))).thenReturn(saved);
 
         BookingResponse result = bookingService.createBooking(request);
@@ -51,22 +57,41 @@ class BookingServiceTest {
         assertThat(result.showId()).isEqualTo(showId);
         assertThat(result.seatId()).isEqualTo(seatId);
         assertThat(result.status()).isEqualTo(BookingStatus.PENDING);
-        verify(eventServiceClient).lockSeat(showId, seatId);
+        verify(seatLockService).tryLock(showId, seatId);
+        verify(eventServiceClient).claimSeat(showId, seatId);
         verify(bookingRepository).save(any(Booking.class));
+        verify(seatLockService, never()).unlock(showId, seatId);
     }
 
     @Test
-    void createBooking_whenSeatUnavailable_propagatesConflictAndNeverSaves() {
+    void createBooking_whenRedisLockNotAcquired_throwsConflictWithoutCallingEventService() {
         UUID showId = UUID.randomUUID();
         UUID seatId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
-        doThrow(new ConflictException("Seat is not available: " + seatId))
-                .when(eventServiceClient).lockSeat(showId, seatId);
+        when(seatLockService.tryLock(showId, seatId)).thenReturn(false);
 
         assertThatThrownBy(() -> bookingService.createBooking(request))
                 .isInstanceOf(ConflictException.class);
 
+        verifyNoInteractions(eventServiceClient);
+        verifyNoInteractions(bookingRepository);
+    }
+
+    @Test
+    void createBooking_whenSeatClaimFails_releasesLockAndNeverSaves() {
+        UUID showId = UUID.randomUUID();
+        UUID seatId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        CreateBookingRequest request = new CreateBookingRequest(showId, seatId, userId);
+        when(seatLockService.tryLock(showId, seatId)).thenReturn(true);
+        doThrow(new ConflictException("Seat is not available: " + seatId))
+                .when(eventServiceClient).claimSeat(showId, seatId);
+
+        assertThatThrownBy(() -> bookingService.createBooking(request))
+                .isInstanceOf(ConflictException.class);
+
+        verify(seatLockService).unlock(showId, seatId);
         verifyNoInteractions(bookingRepository);
     }
 

@@ -48,10 +48,32 @@ public class ShowService {
                 seats);
     }
 
+    /**
+     * Phase 2 baseline (see docs/adr/001-locking-strategy.md): kept as a
+     * working reference implementation. No longer called by booking-service.
+     */
     @Transactional
     public void lockSeat(UUID showId, UUID seatId) {
         Seat seat = seatRepository.findByIdAndShowIdForUpdate(seatId, showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
         seat.lock();
+    }
+
+    /**
+     * Phase 3: plain update, no DB-level lock — safe only because the caller
+     * (booking-service) already holds an external Redis lock for this seat.
+     */
+    @Transactional
+    public void claimSeat(UUID showId, UUID seatId) {
+        Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
+        seat.lock();
+    }
+
+    @Transactional
+    public void releaseSeat(UUID showId, UUID seatId) {
+        Seat seat = seatRepository.findByIdAndShowId(seatId, showId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seat not found: " + seatId));
+        seat.release();
     }
 }

@@ -4,8 +4,123 @@ server:
 spring:
   application:
     name: api-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      # Every route below is deliberately scoped to only the paths and HTTP
+      # methods that are genuinely customer/staff-facing (see each service's
+      # SecurityConfig for which endpoints are marked "internal, service-to-
+      # service only"). Internal endpoints (claim/release/book/lock,
+      # confirm/cancel, payments/booking/{id}, users/{id}) have NO route here
+      # on purpose — they're simply unreachable through the one public entry
+      # point. Services still call each other directly, bypassing the
+      # gateway, the way internal service-to-service traffic normally would
+      # sit behind a private network in a real deployment.
+      routes:
+        # --- booking-service: seat reservation, the flash-sale hot path ---
+        - id: booking-create
+          uri: http://localhost:8082
+          predicates:
+            - Method=POST
+            - Path=/bookings
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+
+        - id: booking-get
+          uri: http://localhost:8082
+          predicates:
+            - Method=GET
+            - Path=/bookings/*
+
+        - id: booking-ticket
+          uri: http://localhost:8082
+          predicates:
+            - Method=GET
+            - Path=/bookings/*/ticket
+
+        - id: booking-share-create
+          uri: http://localhost:8082
+          predicates:
+            - Method=POST
+            - Path=/bookings/*/share
+
+        - id: booking-share-view
+          uri: http://localhost:8082
+          predicates:
+            - Method=GET
+            - Path=/t/*
+
+        - id: booking-redeem
+          uri: http://localhost:8082
+          predicates:
+            - Method=POST
+            - Path=/tickets/redeem
+
+        # --- event-service: catalog browsing + admin event creation ---
+        - id: event-catalog
+          uri: http://localhost:8081
+          predicates:
+            - Path=/events,/events/*
+
+        - id: event-create
+          uri: http://localhost:8081
+          predicates:
+            - Method=POST
+            - Path=/events
+
+        - id: event-seat-map
+          uri: http://localhost:8081
+          predicates:
+            - Method=GET
+            - Path=/shows/*/seats
+
+        # --- user-service: everything under /auth is public by design ---
+        - id: user-auth
+          uri: http://localhost:8084
+          predicates:
+            - Path=/auth/**
+
+        # --- payment-service: charge + Razorpay checkout callbacks ---
+        - id: payment-charge
+          uri: http://localhost:8083
+          predicates:
+            - Method=POST
+            - Path=/payments/charge
+
+        - id: payment-get
+          uri: http://localhost:8083
+          predicates:
+            - Method=GET
+            - Path=/payments/*
+
+        - id: payment-verify
+          uri: http://localhost:8083
+          predicates:
+            - Method=POST
+            - Path=/payments/*/verify
+
+        - id: payment-fail
+          uri: http://localhost:8083
+          predicates:
+            - Method=POST
+            - Path=/payments/*/fail
 
 management:
   endpoint:
     health:
       show-details: never
+
+# Dev-only shared secret — must match the literal value in every other
+# service. Used only to parse (not enforce) the JWT subject claim for
+# rate-limit keying; downstream services remain the real authority on
+# rejecting invalid tokens.
+jwt:
+  secret: dev-only-shared-jwt-signing-secret-do-not-use-in-prod-1234567890

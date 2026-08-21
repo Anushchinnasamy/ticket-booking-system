@@ -30,8 +30,15 @@ public class EventController {
     }
 
     @GetMapping
-    public List<EventSummaryResponse> listEvents(@RequestParam(required = false) EventCategory category) {
-        return eventService.listEvents(category);
+    public List<EventSummaryResponse> listEvents(
+            @RequestParam(required = false) EventCategory category,
+            @RequestParam(required = false) String city) {
+        return eventService.listEvents(category, city);
+    }
+
+    @GetMapping("/cities")
+    public List<String> listCities() {
+        return eventService.listCities();
     }
 
     @GetMapping("/{id}")

@@ -27,11 +27,20 @@ public class EventService {
         this.showRepository = showRepository;
     }
 
-    public List<EventSummaryResponse> listEvents(EventCategory category) {
-        List<Event> events = category != null
-                ? eventRepository.findByCategory(category)
-                : eventRepository.findAll();
+    public List<EventSummaryResponse> listEvents(EventCategory category, String city) {
+        List<Event> events;
+        if (city != null && !city.isBlank()) {
+            events = eventRepository.findByCity(city, category);
+        } else if (category != null) {
+            events = eventRepository.findByCategory(category);
+        } else {
+            events = eventRepository.findAll();
+        }
         return events.stream().map(this::toSummary).toList();
+    }
+
+    public List<String> listCities() {
+        return eventRepository.findDistinctCities();
     }
 
     public EventDetailResponse getEvent(UUID eventId) {

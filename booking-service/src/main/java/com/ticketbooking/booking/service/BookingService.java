@@ -6,6 +6,7 @@ import com.ticketbooking.booking.domain.Booking;
 import com.ticketbooking.booking.domain.BookingStatus;
 import com.ticketbooking.booking.lock.SeatLockService;
 import com.ticketbooking.booking.repository.BookingRepository;
+import com.ticketbooking.booking.ticketing.SeatDetails;
 import com.ticketbooking.booking.web.dto.BookingResponse;
 import com.ticketbooking.booking.web.dto.CreateBookingRequest;
 import com.ticketbooking.common.event.BookingCancelledEvent;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -65,8 +67,13 @@ public class BookingService {
         UUID showId = request.showId();
         UUID seatId = request.seatId();
 
+        SeatDetails seatDetails = eventServiceClient.getSeatDetails(showId, seatId);
+        if (!seatDetails.startTime().isAfter(Instant.now())) {
+            throw new ConflictException("This show has already started — please choose another showtime.");
+        }
+
         if (!seatLockService.tryLock(showId, seatId)) {
-            throw new ConflictException("Seat is not available: " + seatId);
+            throw new ConflictException("Seat %s%d was just taken by someone else.".formatted(seatDetails.rowLabel(), seatDetails.seatNumber()));
         }
 
         try {

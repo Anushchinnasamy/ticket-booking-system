@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #F5F5F7;
+    }
+    a { color: #E23744; }
+    a:hover { color: #ff5b67; }
+    ::selection { background: #5A1218; color: #F5F5F7; }
+  </style>
+</helmet>
+
+<div style="width:1200px; padding:64px 72px; background:#0E0E10; display:flex; flex-direction:column; gap:56px;">
+
+  <!-- Page header -->
+  <div style="display:flex; flex-direction:column; gap:6px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:14px; letter-spacing:0.18em; color:#E23744; text-transform:uppercase;">Phase F0 — Setup</div>
+    <h1 style="font-family:'Manrope',sans-serif; font-weight:700; font-size:36px; letter-spacing:-0.02em; margin:0; color:#F5F5F7;">Component Library &amp; Design Tokens</h1>
+    <div style="font-size:15px; color:#9A9AA2;">Built once, reused everywhere — the foundation every screen in the app draws from.</div>
+  </div>
+
+  <!-- PrimaryButton section -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.01em;">PrimaryButton</div>
+    <div style="display:flex; gap:24px; align-items:center;">
+
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
+        <button style="background:#E23744; color:#F5F5F7; border:none; border-radius:10px; padding:14px 32px; font-family:'Inter',sans-serif; font-weight:600; font-size:15px; cursor:pointer; box-shadow:0 4px 16px rgba(226,55,68,0.35);">Book Now</button>
+        <div style="font-size:12px; color:#9A9AA2;">Default</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
+        <button style="background:#E23744; color:#F5F5F7; border:none; border-radius:10px; padding:14px 32px; font-family:'Inter',sans-serif; font-weight:600; font-size:15px; cursor:pointer; transform:scale(0.96); box-shadow:0 2px 8px rgba(226,55,68,0.25);">Book Now</button>
+        <div style="font-size:12px; color:#9A9AA2;">Pressed</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
+        <button style="background:#3A3A3E; color:#6B6B70; border:none; border-radius:10px; padding:14px 32px; font-family:'Inter',sans-serif; font-weight:600; font-size:15px; cursor:not-allowed;">Book Now</button>
+        <div style="font-size:12px; color:#9A9AA2;">Disabled</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MovieCard section -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.01em;">MovieCard / EventCard</div>
+    <div style="display:flex; gap:28px;">
+
+      <div style="width:200px; display:flex; flex-direction:column; gap:10px; transform:rotate(-2deg);">
+        <div style="position:relative; width:200px; height:300px; border-radius:14px; overflow:hidden; background:linear-gradient(145deg,#3d1f5c,#1a0f2e); box-shadow:0 20px 40px -12px rgba(0,0,0,0.6);">
+          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.75) 100%);"></div>
+          <div style="position:absolute; left:10px; bottom:10px; display:flex; align-items:center; gap:4px; background:rgba(14,14,16,0.75); backdrop-filter:blur(4px); padding:4px 8px; border-radius:8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#F5C518"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.9-6.2 3.9 1.6-7L2 9.2l7.1-.6z"/></svg>
+            <span style="font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:12px; font-weight:600; color:#F5F5F7;">8.4</span>
+          </div>
+        </div>
+        <div style="font-family:'Inter',sans-serif; font-weight:600; font-size:14px; color:#F5F5F7;">Midnight Frequency</div>
+        <div style="font-size:12px; color:#9A9AA2;">Thriller · from ₹220</div>
+      </div>
+
+      <div style="width:200px; display:flex; flex-direction:column; gap:10px;">
+        <div style="position:relative; width:200px; height:300px; border-radius:14px; overflow:hidden; background:linear-gradient(145deg,#0d3b3a,#0a1f1f); box-shadow:0 24px 48px -14px rgba(0,0,0,0.7);">
+          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.75) 100%);"></div>
+          <div style="position:absolute; left:10px; bottom:10px; display:flex; align-items:center; gap:4px; background:rgba(14,14,16,0.75); backdrop-filter:blur(4px); padding:4px 8px; border-radius:8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#F5C518"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.9-6.2 3.9 1.6-7L2 9.2l7.1-.6z"/></svg>
+            <span style="font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:12px; font-weight:600; color:#F5F5F7;">9.1</span>
+          </div>
+        </div>
+        <div style="font-family:'Inter',sans-serif; font-weight:600; font-size:14px; color:#F5F5F7;">Glasshouse</div>
+        <div style="font-size:12px; color:#9A9AA2;">Live Event · from ₹899</div>
+      </div>
+
+      <div style="width:200px; display:flex; flex-direction:column; gap:10px; transform:rotate(2deg);">
+        <div style="position:relative; width:200px; height:300px; border-radius:14px; overflow:hidden; background:linear-gradient(145deg,#5c2a1f,#2e120c); box-shadow:0 20px 40px -12px rgba(0,0,0,0.6);">
+          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.75) 100%);"></div>
+          <div style="position:absolute; left:10px; bottom:10px; display:flex; align-items:center; gap:4px; background:rgba(14,14,16,0.75); backdrop-filter:blur(4px); padding:4px 8px; border-radius:8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#F5C518"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.9-6.2 3.9 1.6-7L2 9.2l7.1-.6z"/></svg>
+            <span style="font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:12px; font-weight:600; color:#F5F5F7;">7.8</span>
+          </div>
+        </div>
+        <div style="font-family:'Inter',sans-serif; font-weight:600; font-size:14px; color:#F5F5F7;">Standup: Loose Ends</div>
+        <div style="font-size:12px; color:#9A9AA2;">Comedy · from ₹349</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CategoryTab section -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.01em;">CategoryTab</div>
+    <div style="display:flex; gap:10px;">
+      <div style="background:#E23744; color:#F5F5F7; border-radius:999px; padding:10px 22px; font-family:'Inter',sans-serif; font-weight:600; font-size:14px;">Movies</div>
+      <div style="background:#1A1A1D; color:#9A9AA2; border-radius:999px; padding:10px 22px; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;">Events</div>
+      <div style="background:#1A1A1D; color:#9A9AA2; border-radius:999px; padding:10px 22px; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;">Sports</div>
+      <div style="background:#1A1A1D; color:#9A9AA2; border-radius:999px; padding:10px 22px; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;">Plays</div>
+      <div style="background:#1A1A1D; color:#9A9AA2; border-radius:999px; padding:10px 22px; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;">Live</div>
+    </div>
+  </div>
+
+  <!-- Color tokens -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.01em;">Color Tokens</div>
+    <div style="display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:14px;">
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#0E0E10; border:1px solid #2A2A2E;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">bg</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#0E0E10</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#1A1A1D;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">surface</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#1A1A1D</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#232326;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">surface-raised</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#232326</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#E23744;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">accent</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#E23744</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#5A1218;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">accent-dim</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#5A1218</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#F5C518;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">gold</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#F5C518</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#2ECC71;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">success</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#2ECC71</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="height:56px; border-radius:10px; background:#FF4D4D;"></div>
+        <div style="font-size:11px; font-weight:600; color:#F5F5F7;">danger</div>
+        <div style="font-size:10px; color:#9A9AA2; font-variant-numeric:tabular-nums;">#FF4D4D</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 760, "title": "My Bookings" },
+    { "file": "EmptyState.dc.html", "x": 1520, "y": 0, "w": 1440, "h": 760, "title": "Empty state" },
+    { "file": "Mobile.dc.html", "x": 3040, "y": 0, "w": 390, "h": 844, "title": "Mobile responsive" },
+    { "file": "Accessibility.dc.html", "x": 3510, "y": 0, "w": 940, "h": 560, "title": "Accessibility pass" }
+  ],
+  "launch": { "view": "canvas" }
+}

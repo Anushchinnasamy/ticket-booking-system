@@ -52,7 +52,7 @@ class SeatMapCacheServiceTest {
     }
 
     private static SeatResponse sampleSeat(UUID id) {
-        return new SeatResponse(id, "A", 12, SeatType.PREMIUM, new BigDecimal("500.00"), SeatStatus.AVAILABLE);
+        return new SeatResponse(id, "A", 12, SeatType.PREMIUM, new BigDecimal("500.00"), SeatStatus.AVAILABLE, null);
     }
 
     @Test

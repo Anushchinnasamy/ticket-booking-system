@@ -147,6 +147,6 @@ public class ShowService {
 
     private SeatResponse toSeatResponse(UUID seatId, Seat seat) {
         return new SeatResponse(seatId, seat.getRowLabel(), seat.getSeatNumber(),
-                seat.getSeatType(), seat.getPrice(), seat.getStatus());
+                seat.getSeatType(), seat.getPrice(), seat.getStatus(), seat.getLockedAt());
     }
 }

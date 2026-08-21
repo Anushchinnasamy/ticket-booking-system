@@ -1,0 +1,278 @@
+# Render Blueprint — deploys the full backend (everything except the
+# frontend, which is deployed separately to Vercel). Deploy via Render's
+# dashboard: New -> Blueprint -> connect this repo -> Render reads this file.
+#
+# Only api-gateway is a public `web` service; every other backend service is
+# a private service (`pserv`), reachable by other Render services in this
+# project but not from the public internet — the same "internal network"
+# shape docker-compose.yml uses locally, and the same reasoning the gateway's
+# own route list already documents (internal endpoints have no route
+# because nothing outside is meant to reach a service directly).
+#
+# NOT tested against a live Render deploy (no Render account access from
+# here) — written from Render's documented Blueprint spec and the same
+# environment-variable wiring already verified working in docker-compose.yml.
+# Expect to iterate on this with real deploy logs the first time it runs.
+
+databases:
+  - name: event-db
+    databaseName: event_db
+    user: event
+    plan: free
+  - name: booking-db
+    databaseName: booking_db
+    user: booking
+    plan: free
+  - name: payment-db
+    databaseName: payment_db
+    user: payment
+    plan: free
+  - name: user-db
+    databaseName: user_db
+    user: appuser
+    plan: free
+
+services:
+  - type: redis
+    name: redis
+    plan: free
+    ipAllowList: []
+
+  - type: pserv
+    name: kafka
+    runtime: image
+    image:
+      url: docker.io/confluentinc/cp-kafka:7.6.1
+    plan: starter
+    disk:
+      name: kafka-data
+      mountPath: /var/lib/kafka/data
+      sizeGB: 5
+    envVars:
+      - key: KAFKA_NODE_ID
+        value: "1"
+      - key: KAFKA_PROCESS_ROLES
+        value: broker,controller
+      - key: KAFKA_LISTENERS
+        value: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - key: KAFKA_ADVERTISED_LISTENERS
+        value: PLAINTEXT://kafka:9092
+      - key: KAFKA_CONTROLLER_LISTENER_NAMES
+        value: CONTROLLER
+      - key: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+        value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - key: KAFKA_CONTROLLER_QUORUM_VOTERS
+        value: 1@localhost:9093
+      - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+        value: "1"
+      - key: CLUSTER_ID
+        value: ciWo7IWazngRchmPES6q5A==
+
+  - type: pserv
+    name: minio
+    runtime: image
+    image:
+      url: docker.io/minio/minio:latest
+    plan: starter
+    dockerCommand: server /data --console-address ":9090"
+    disk:
+      name: minio-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: MINIO_ROOT_USER
+        sync: false
+      - key: MINIO_ROOT_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: event-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: event-service
+    plan: starter
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: event-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: event-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: event-db
+          property: password
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: kafka:9092
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
+
+  - type: pserv
+    name: booking-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: booking-service
+    plan: starter
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: booking-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: booking-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: booking-db
+          property: password
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: kafka:9092
+      - key: REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
+      - key: EVENT_SERVICE_BASE_URL
+        value: http://event-service:8081
+      - key: PAYMENT_SERVICE_BASE_URL
+        value: http://payment-service:8083
+      - key: TICKET_STORAGE_ENDPOINT
+        value: http://minio:9000
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+
+  - type: pserv
+    name: payment-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: payment-service
+    plan: starter
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: payment-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: payment-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: payment-db
+          property: password
+      - key: BOOKING_SERVICE_BASE_URL
+        value: http://booking-service:8082
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+
+  - type: pserv
+    name: user-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: user-service
+    plan: starter
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: user-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: user-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: user-db
+          property: password
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: kafka:9092
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
+
+  - type: pserv
+    name: notification-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: notification-service
+    plan: starter
+    envVars:
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: kafka:9092
+      - key: USER_SERVICE_BASE_URL
+        value: http://user-service:8084
+      - key: EVENT_SERVICE_BASE_URL
+        value: http://event-service:8081
+      - key: PAYMENT_SERVICE_BASE_URL
+        value: http://payment-service:8083
+      - key: GMAIL_USERNAME
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+
+  - type: web
+    name: api-gateway
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerBuildArgs:
+      SERVICE_NAME: api-gateway
+    plan: starter
+    envVars:
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
+      - key: EVENT_SERVICE_URL
+        value: http://event-service:8081
+      - key: BOOKING_SERVICE_URL
+        value: http://booking-service:8082
+      - key: PAYMENT_SERVICE_URL
+        value: http://payment-service:8083
+      - key: USER_SERVICE_URL
+        value: http://user-service:8084
+      - key: FRONTEND_ORIGIN
+        sync: false

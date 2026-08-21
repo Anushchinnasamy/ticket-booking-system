@@ -1,0 +1,171 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:#0E0E10; font-family:'Inter', system-ui, -apple-system, sans-serif; color:#F5F5F7; }
+    a { color:#E23744; text-decoration:none; }
+    .backlink { display:flex; align-items:center; gap:8px; font-size:13px; color:#9A9AA2; cursor:pointer; }
+    .tier-chip { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:#C9C9CE; }
+    .tier-swatch { width:14px; height:14px; border-radius:4px; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:#9A9AA2; }
+    .legend-swatch { width:18px; height:18px; border-radius:5px; }
+    .seat { width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; font-variant-numeric:tabular-nums; flex-shrink:0; }
+    .rowlabel { width:16px; font-size:11px; font-weight:600; color:#5A5A5F; text-align:center; flex-shrink:0; }
+    .sidebar { width:360px; flex-shrink:0; background:#1A1A1D; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:22px; height:fit-content; position:sticky; top:28px; }
+    .countdown { display:flex; align-items:center; justify-content:center; gap:8px; background:#5A1218; border-radius:12px; padding:14px; animation:pulseGlow 1.6s ease-in-out infinite; }
+    @keyframes pulseGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(226,55,68,0.45);} 50%{ box-shadow:0 0 0 10px rgba(226,55,68,0);} }
+    .paybtn { background:#E23744; color:#F5F5F7; font-weight:700; font-size:15px; text-align:center; padding:15px; border-radius:12px; cursor:pointer; box-shadow:0 10px 26px rgba(226,55,68,0.35); }
+    .seat-chip { background:#232326; color:#F5F5F7; font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; padding:6px 12px; border-radius:999px; }
+
+    .screen-arc { width:640px; height:64px; margin:0 auto 30px auto; }
+  </style>
+</helmet>
+
+<div style="width:1440px; min-height:1200px; background:#0E0E10; display:flex; flex-direction:column;">
+
+  <div style="height:76px; display:flex; align-items:center; gap:20px; padding:0 90px; border-bottom:1px solid #1E1E21;">
+    <div class="backlink">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A9AA2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </div>
+    <div style="width:1px; height:20px; background:#262629;"></div>
+    <div style="display:flex; flex-direction:column;">
+      <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:15px;">Midnight Frequency</div>
+      <div style="font-size:11.5px; color:#9A9AA2;">PVR Forum Mall &middot; Fri, 21 Aug &middot; 7:50 PM</div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:40px; padding:36px 90px 80px 90px; align-items:flex-start;">
+
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:28px;">
+
+      <div style="display:flex; flex-direction:column; align-items:center; gap:16px; width:100%;">
+        
+      <div style="display:flex; gap:24px;">
+        <div class="tier-chip"><div class="tier-swatch" style="background:transparent; border:2px solid #F5C518;"></div>Recliner &middot; &#8377;650</div>
+        <div class="tier-chip"><div class="tier-swatch" style="background:transparent; border:2px solid #E23744;"></div>Premium &middot; &#8377;450</div>
+        <div class="tier-chip"><div class="tier-swatch" style="background:transparent; border:2px solid #5A5A5F;"></div>Classic &middot; &#8377;280</div>
+      </div>
+        
+      <div style="display:flex; gap:22px;">
+        <div class="legend-item"><div class="legend-swatch" style="background:transparent; border:1.5px solid #9A9AA266;"></div>Available</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#E23744;"></div>Selected</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35);"></div>Locked by others</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#1C1C1F; border:1.5px solid #232326;"></div>Booked</div>
+      </div>
+      </div>
+
+      <svg class="screen-arc" viewBox="0 0 640 64">
+        <path d="M 10 60 Q 320 -10 630 60" stroke="#5A5A5F" stroke-width="2" fill="none"/>
+        <path d="M 10 60 Q 320 -10 630 60" stroke="#E23744" stroke-width="2" fill="none" opacity="0.35" filter="blur(6px)"/>
+      </svg>
+      <div style="font-size:11px; letter-spacing:0.2em; color:#5A5A5F; margin-top:-40px;">SCREEN THIS WAY</div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">A</div>
+    <div style="display:flex;"><div class="seat" title="A1" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="A2" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="A3" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="A4" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="A5" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:22px;">5</div><div class="seat" title="A6" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="A7" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">7</div><div class="seat" title="A8" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">8</div><div class="seat" title="A9" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="A10" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">10</div></div>
+    <div class="rowlabel">A</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">B</div>
+    <div style="display:flex;"><div class="seat" title="B1" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="B2" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="B3" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="B4" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="B5" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:22px;">5</div><div class="seat" title="B6" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="B7" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">7</div><div class="seat" title="B8" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">8</div><div class="seat" title="B9" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="B10" style="background:transparent; border:1.5px solid #F5C51866; color:#9A9AA2; margin-right:4px;">10</div></div>
+    <div class="rowlabel">B</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">C</div>
+    <div style="display:flex;"><div class="seat" title="C1" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="C2" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="C3" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="C4" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="C5" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">5</div><div class="seat" title="C6" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="C7" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:22px;">7</div><div class="seat" title="C8" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">8</div><div class="seat" title="C9" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="C10" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="C11" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="C12" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="C13" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">13</div><div class="seat" title="C14" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">14</div></div>
+    <div class="rowlabel">C</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">D</div>
+    <div style="display:flex;"><div class="seat" title="D1" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="D2" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="D3" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="D4" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="D5" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">5</div><div class="seat" title="D6" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="D7" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:22px;">7</div><div class="seat" title="D8" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">8</div><div class="seat" title="D9" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="D10" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">10</div><div class="seat" title="D11" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="D12" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="D13" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">13</div><div class="seat" title="D14" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">14</div></div>
+    <div class="rowlabel">D</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">E</div>
+    <div style="display:flex;"><div class="seat" title="E1" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="E2" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="E3" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="E4" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="E5" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">5</div><div class="seat" title="E6" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="E7" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:22px;">7</div><div class="seat" title="E8" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="E9" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="E10" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">10</div><div class="seat" title="E11" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="E12" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">12</div><div class="seat" title="E13" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">13</div><div class="seat" title="E14" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div></div>
+    <div class="rowlabel">E</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">F</div>
+    <div style="display:flex;"><div class="seat" title="F1" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="F2" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="F3" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="F4" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="F5" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="F6" style="background:#E23744; border:1.5px solid #E23744; color:#F5F5F7; box-shadow:0 0 0 3px rgba(226,55,68,0.22); margin-right:4px;">6</div><div class="seat" title="F7" style="background:#E23744; border:1.5px solid #E23744; color:#F5F5F7; box-shadow:0 0 0 3px rgba(226,55,68,0.22); margin-right:22px;">7</div><div class="seat" title="F8" style="background:#E23744; border:1.5px solid #E23744; color:#F5F5F7; box-shadow:0 0 0 3px rgba(226,55,68,0.22); margin-right:4px;">8</div><div class="seat" title="F9" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="F10" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">10</div><div class="seat" title="F11" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="F12" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="F13" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">13</div><div class="seat" title="F14" style="background:transparent; border:1.5px solid #E2374466; color:#9A9AA2; margin-right:4px;">14</div></div>
+    <div class="rowlabel">F</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">G</div>
+    <div style="display:flex;"><div class="seat" title="G1" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="G2" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">2</div><div class="seat" title="G3" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="G4" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="G5" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">5</div><div class="seat" title="G6" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="G7" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">7</div><div class="seat" title="G8" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:22px;">8</div><div class="seat" title="G9" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="G10" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">10</div><div class="seat" title="G11" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="G12" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="G13" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">13</div><div class="seat" title="G14" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">14</div><div class="seat" title="G15" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">15</div><div class="seat" title="G16" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">16</div></div>
+    <div class="rowlabel">G</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">H</div>
+    <div style="display:flex;"><div class="seat" title="H1" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="H2" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="H3" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="H4" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="H5" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">5</div><div class="seat" title="H6" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="H7" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">7</div><div class="seat" title="H8" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:22px;">8</div><div class="seat" title="H9" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="H10" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div><div class="seat" title="H11" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="H12" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="H13" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">13</div><div class="seat" title="H14" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">14</div><div class="seat" title="H15" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">15</div><div class="seat" title="H16" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">16</div></div>
+    <div class="rowlabel">H</div>
+  </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+    <div class="rowlabel">I</div>
+    <div style="display:flex;"><div class="seat" title="I1" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">1</div><div class="seat" title="I2" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">2</div><div class="seat" title="I3" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">3</div><div class="seat" title="I4" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">4</div><div class="seat" title="I5" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">5</div><div class="seat" title="I6" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">6</div><div class="seat" title="I7" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">7</div><div class="seat" title="I8" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:22px;">8</div><div class="seat" title="I9" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">9</div><div class="seat" title="I10" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">10</div><div class="seat" title="I11" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">11</div><div class="seat" title="I12" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">12</div><div class="seat" title="I13" style="background:rgba(255,77,77,0.10); border:1.5px solid rgba(255,77,77,0.35); color:#FF4D4D; cursor:not-allowed; margin-right:4px;">13</div><div class="seat" title="I14" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">14</div><div class="seat" title="I15" style="background:transparent; border:1.5px solid #5A5A5F66; color:#9A9AA2; margin-right:4px;">15</div><div class="seat" title="I16" style="background:#1C1C1F; border:1.5px solid #232326; color:#3A3A3E; cursor:not-allowed; margin-right:4px;"></div></div>
+    <div class="rowlabel">I</div>
+  </div>
+      </div>
+
+    </div>
+
+    <div class="sidebar">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <img src="poster-1.jpg" alt="Midnight Frequency" style="width:56px; height:84px; border-radius:8px; object-fit:cover;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:15px; line-height:1.25;">Midnight Frequency</div>
+          <div style="font-size:12px; color:#9A9AA2;">PVR Forum Mall · Recliner, Dolby Atmos</div>
+          <div style="font-size:12px; color:#9A9AA2;">Fri, 21 Aug · 7:50 PM</div>
+        </div>
+      </div>
+
+      <div style="height:1px; background:#262629;"></div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12.5px; color:#9A9AA2; font-weight:600;">SELECTED SEATS (3)</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="seat-chip">F6</div>
+          <div class="seat-chip">F7</div>
+          <div class="seat-chip">F8</div>
+        </div>
+      </div>
+
+      <div style="height:1px; background:#262629;"></div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#9A9AA2;"><span>Premium x 3</span><span style="font-variant-numeric:tabular-nums; color:#F5F5F7;">&#8377;1350</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#9A9AA2;"><span>Convenience fee</span><span style="font-variant-numeric:tabular-nums; color:#F5F5F7;">&#8377;45</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; margin-top:4px;"><span>Total</span><span style="font-variant-numeric:tabular-nums;">&#8377;1395</span></div>
+      </div>
+
+      <div class="countdown">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg>
+        <span style="font-family:'Inter',sans-serif; font-weight:700; font-size:15px; color:#F5C518; font-variant-numeric:tabular-nums;">Seats locked — 00:47</span>
+      </div>
+
+      <div class="paybtn">Proceed to Pay</div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

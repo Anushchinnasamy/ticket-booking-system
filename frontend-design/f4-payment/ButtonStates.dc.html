@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:#0E0E10; font-family:'Inter', system-ui, -apple-system, sans-serif; color:#F5F5F7; }
+    .paybtn { color:#F5F5F7; font-weight:700; font-size:15px; text-align:center; padding:16px 34px; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:10px; width:220px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spinner { width:16px; height:16px; border-radius:999px; border:2.5px solid rgba(245,245,247,0.35); border-top-color:#F5F5F7; animation:spin 0.7s linear infinite; }
+  </style>
+</helmet>
+
+<div style="width:900px; padding:56px; background:#0E0E10; display:flex; flex-direction:column; gap:36px;">
+
+  <div style="display:flex; flex-direction:column; gap:6px;">
+    <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:13px; letter-spacing:0.16em; color:#E23744; text-transform:uppercase;">Phase F4 — Idempotency-safe Pay button</div>
+    <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:22px; letter-spacing:-0.01em;">What happens on click</div>
+    <div style="font-size:13.5px; color:#9A9AA2; max-width:640px;">A UUID idempotency key is generated the moment this screen loads and sent with the charge request. The button disables the instant it's clicked — not just visually — so a second click (or a slow network causing a double-tap) can never fire a second charge. The same key is reused if the request is retried.</div>
+  </div>
+
+  <div style="display:flex; gap:36px; align-items:flex-start;">
+
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-start;">
+      <div class="paybtn" style="background:#E23744; cursor:pointer; box-shadow:0 10px 26px rgba(226,55,68,0.35);">Pay &#8377;1256</div>
+      <div style="font-size:12px; color:#9A9AA2;">1 &middot; Default — enabled, awaiting tap</div>
+    </div>
+
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5A5F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:16px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-start;">
+      <div class="paybtn" style="background:#8a2530; cursor:not-allowed;"><div class="spinner"></div>Processing…</div>
+      <div style="font-size:12px; color:#9A9AA2; max-width:220px;">2 &middot; Disabled the instant it's tapped — pointer-events off, spinner replaces label</div>
+    </div>
+
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5A5F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:16px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-start;">
+      <div class="paybtn" style="background:#2ECC71; color:#0E0E10;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E0E10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Confirmed
+      </div>
+      <div style="font-size:12px; color:#9A9AA2; max-width:220px;">3 &middot; Success — routes to Confirmation, retries with the same key are safely deduped server-side</div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

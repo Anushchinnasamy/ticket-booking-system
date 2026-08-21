@@ -1,0 +1,11 @@
+**/target/
+frontend/
+frontend-design/
+load-tests/
+docs/
+*.md
+.git/
+.claude/
+.idea/
+*.iml
+docker-data/

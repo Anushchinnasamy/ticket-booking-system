@@ -25,7 +25,7 @@ spring:
         cors-configurations:
           '[/**]':
             allowedOrigins:
-              - "http://localhost:5173"
+              - "${FRONTEND_ORIGIN:http://localhost:5173}"
             allowedMethods:
               - GET
               - POST
@@ -47,7 +47,7 @@ spring:
       routes:
         # --- booking-service: seat reservation, the flash-sale hot path ---
         - id: booking-create
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=POST
             - Path=/bookings
@@ -60,13 +60,13 @@ spring:
                 key-resolver: "#{@userKeyResolver}"
 
         - id: booking-get
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=GET
             - Path=/bookings/*
 
         - id: booking-ticket
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             # HEAD too — the frontend polls ticket readiness with a HEAD
             # request (see waitForTicketReady) before the real GET download.
@@ -74,86 +74,86 @@ spring:
             - Path=/bookings/*/ticket
 
         - id: booking-share-create
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=POST
             - Path=/bookings/*/share
 
         - id: booking-share-view
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=GET
             - Path=/t/*
 
         - id: booking-ticket-combined
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=POST
             - Path=/bookings/tickets/combined
 
         - id: booking-share-combined-create
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=POST
             - Path=/bookings/tickets/combined/share
 
         - id: booking-share-combined-view
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=GET
             - Path=/t/group/*
 
         - id: booking-redeem
-          uri: http://localhost:8082
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8082}
           predicates:
             - Method=POST
             - Path=/tickets/redeem
 
         # --- event-service: catalog browsing + admin event creation ---
         - id: event-catalog
-          uri: http://localhost:8081
+          uri: ${EVENT_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/events,/events/*
 
         - id: event-create
-          uri: http://localhost:8081
+          uri: ${EVENT_SERVICE_URL:http://localhost:8081}
           predicates:
             - Method=POST
             - Path=/events
 
         - id: event-seat-map
-          uri: http://localhost:8081
+          uri: ${EVENT_SERVICE_URL:http://localhost:8081}
           predicates:
             - Method=GET
             - Path=/shows/*/seats
 
         # --- user-service: everything under /auth is public by design ---
         - id: user-auth
-          uri: http://localhost:8084
+          uri: ${USER_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/auth/**
 
         # --- payment-service: charge + Razorpay checkout callbacks ---
         - id: payment-charge
-          uri: http://localhost:8083
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Method=POST
             - Path=/payments/charge
 
         - id: payment-get
-          uri: http://localhost:8083
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Method=GET
             - Path=/payments/*
 
         - id: payment-verify
-          uri: http://localhost:8083
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Method=POST
             - Path=/payments/*/verify
 
         - id: payment-fail
-          uri: http://localhost:8083
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Method=POST
             - Path=/payments/*/fail

@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -44,6 +45,9 @@ public class Seat {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private SeatStatus status;
+
+    @Column(name = "locked_at")
+    private Instant lockedAt;
 
     protected Seat() {
     }
@@ -85,11 +89,16 @@ public class Seat {
         return status;
     }
 
+    public Instant getLockedAt() {
+        return lockedAt;
+    }
+
     public void lock() {
         if (status != SeatStatus.AVAILABLE) {
             throw new ConflictException("Seat is not available: " + id);
         }
         status = SeatStatus.LOCKED;
+        lockedAt = Instant.now();
     }
 
     /**
@@ -102,6 +111,7 @@ public class Seat {
     public void release() {
         if (status == SeatStatus.LOCKED || status == SeatStatus.BOOKED) {
             status = SeatStatus.AVAILABLE;
+            lockedAt = null;
         }
     }
 
@@ -111,5 +121,6 @@ public class Seat {
             throw new ConflictException("Seat is not locked, cannot book: " + id);
         }
         status = SeatStatus.BOOKED;
+        lockedAt = null;
     }
 }

@@ -118,7 +118,7 @@ class ShowServiceTest {
         SeatMapResponse cached = new SeatMapResponse(showId, "Cached Title", "Cached Venue",
                 Instant.parse("2026-09-01T10:00:00Z"), new BigDecimal("100.00"),
                 List.of(new SeatResponse(UUID.randomUUID(), "A", 1, SeatType.REGULAR,
-                        new BigDecimal("100.00"), SeatStatus.AVAILABLE)));
+                        new BigDecimal("100.00"), SeatStatus.AVAILABLE, null)));
         when(seatMapCacheService.get(showId)).thenReturn(Optional.of(cached));
 
         SeatMapResponse result = newService().getSeatMap(showId);

@@ -42,14 +42,20 @@ public class PaymentService {
     /**
      * Idempotency key is checked first — a retried request with the same key
      * returns the stored result instead of creating a second Razorpay order.
-     * Not wrapped in a transaction: the booking lookup and the Razorpay order
-     * creation are both network round trips that must resolve before any
+     * Not wrapped in a transaction: the booking lookups and the Razorpay order
+     * creation are all network round trips that must resolve before any
      * local row is written.
+     *
+     * <p>One charge now covers every booking in the cart (one per seat) —
+     * a single Razorpay order for the total, not one order per seat. Every
+     * booking is validated (owned by the caller, still PENDING) before the
+     * order is created; if any one of them fails that check, nothing is
+     * charged for the rest either.
      *
      * <p>{@code authorizationHeader} is the caller's own bearer token,
      * forwarded to booking-service so its normal ownership check applies —
      * see {@link BookingServiceClient#getBooking}. A caller who doesn't own
-     * the booking gets the same 404 booking-service itself would give a
+     * a booking gets the same 404 booking-service itself would give a
      * non-owner, not a 403 — consistent with the anti-enumeration approach
      * used throughout this system.
      */
@@ -59,17 +65,19 @@ public class PaymentService {
             return toChargeResponse(existing.get());
         }
 
-        BookingInfo booking = bookingServiceClient.getBooking(request.bookingId(), authorizationHeader);
-        if (!booking.userId().equals(callerUserId)) {
-            throw new ResourceNotFoundException("Booking not found: " + request.bookingId());
-        }
-        if (!"PENDING".equals(booking.status())) {
-            throw new ConflictException("Booking is not PENDING: " + request.bookingId());
+        for (UUID bookingId : request.bookingIds()) {
+            BookingInfo booking = bookingServiceClient.getBooking(bookingId, authorizationHeader);
+            if (!booking.userId().equals(callerUserId)) {
+                throw new ResourceNotFoundException("Booking not found: " + bookingId);
+            }
+            if (!"PENDING".equals(booking.status())) {
+                throw new ConflictException("Booking is not PENDING: " + bookingId);
+            }
         }
 
         String razorpayOrderId = gatewayClient.createOrder(request.amount(), "INR", idempotencyKey);
 
-        Payment payment = new Payment(idempotencyKey, request.bookingId(), request.amount(), "INR", razorpayOrderId);
+        Payment payment = new Payment(idempotencyKey, request.bookingIds(), request.amount(), "INR", razorpayOrderId);
         Payment saved;
         try {
             saved = paymentRepository.save(payment);
@@ -110,11 +118,15 @@ public class PaymentService {
         if (valid) {
             payment.markSuccess(request.razorpayPaymentId());
             paymentRepository.save(payment);
-            bookingServiceClient.confirmBooking(payment.getBookingId());
+            for (UUID bookingId : payment.getBookingIds()) {
+                bookingServiceClient.confirmBooking(bookingId);
+            }
         } else {
             payment.markFailed();
             paymentRepository.save(payment);
-            bookingServiceClient.cancelBooking(payment.getBookingId());
+            for (UUID bookingId : payment.getBookingIds()) {
+                bookingServiceClient.cancelBooking(bookingId);
+            }
         }
         return toResponse(payment);
     }
@@ -155,7 +167,9 @@ public class PaymentService {
 
         payment.markFailed();
         paymentRepository.save(payment);
-        bookingServiceClient.cancelBooking(payment.getBookingId());
+        for (UUID bookingId : payment.getBookingIds()) {
+            bookingServiceClient.cancelBooking(bookingId);
+        }
         return toResponse(payment);
     }
 
@@ -167,7 +181,7 @@ public class PaymentService {
     private ChargeResponse toChargeResponse(Payment payment) {
         return new ChargeResponse(
                 payment.getId(),
-                payment.getBookingId(),
+                payment.getBookingIds(),
                 payment.getAmount(),
                 payment.getCurrency(),
                 payment.getStatus(),
@@ -178,7 +192,7 @@ public class PaymentService {
     private PaymentResponse toResponse(Payment payment) {
         return new PaymentResponse(
                 payment.getId(),
-                payment.getBookingId(),
+                payment.getBookingIds(),
                 payment.getAmount(),
                 payment.getCurrency(),
                 payment.getStatus(),

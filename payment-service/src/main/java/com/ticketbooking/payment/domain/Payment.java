@@ -10,14 +10,19 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * booking_id references Booking Service's own data (a different database) —
- * there is no JPA relation or FK here, only the ID.
+ * booking_ids references Booking Service's own data (a different database) —
+ * there is no JPA relation or FK here, only the IDs. One Payment now covers
+ * one checkout attempt across potentially several bookings (one per seat) —
+ * a single Razorpay order for the whole cart, not one order per seat.
  */
 @Entity
 @Table(name = "payments")
@@ -30,8 +35,9 @@ public class Payment {
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
 
-    @Column(name = "booking_id", nullable = false)
-    private UUID bookingId;
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "booking_ids", nullable = false, columnDefinition = "uuid[]")
+    private List<UUID> bookingIds;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
@@ -61,9 +67,9 @@ public class Payment {
     protected Payment() {
     }
 
-    public Payment(String idempotencyKey, UUID bookingId, BigDecimal amount, String currency, String razorpayOrderId) {
+    public Payment(String idempotencyKey, List<UUID> bookingIds, BigDecimal amount, String currency, String razorpayOrderId) {
         this.idempotencyKey = idempotencyKey;
-        this.bookingId = bookingId;
+        this.bookingIds = bookingIds;
         this.amount = amount;
         this.currency = currency;
         this.razorpayOrderId = razorpayOrderId;
@@ -107,8 +113,8 @@ public class Payment {
         return idempotencyKey;
     }
 
-    public UUID getBookingId() {
-        return bookingId;
+    public List<UUID> getBookingIds() {
+        return bookingIds;
     }
 
     public BigDecimal getAmount() {

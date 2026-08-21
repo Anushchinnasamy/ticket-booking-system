@@ -2,6 +2,7 @@ package com.ticketbooking.booking.web;
 
 import com.ticketbooking.booking.ticketing.SharedTicketView;
 import com.ticketbooking.booking.ticketing.TicketService;
+import com.ticketbooking.booking.web.dto.CombinedTicketRequest;
 import com.ticketbooking.booking.web.dto.RedeemRequest;
 import com.ticketbooking.booking.web.dto.ShareLinkResponse;
 import jakarta.validation.Valid;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -46,11 +49,42 @@ public class TicketController {
         return new ShareLinkResponse("/t/" + token);
     }
 
+    /**
+     * One PDF covering every seat in a booking group (all bookings from one
+     * checkout) — one page per seat, one download, instead of a separate
+     * ticket per seat.
+     */
+    @PostMapping("/bookings/tickets/combined")
+    public ResponseEntity<byte[]> getCombinedTicket(@Valid @RequestBody CombinedTicketRequest request, Authentication authentication) {
+        UUID requestingUserId = UUID.fromString(authentication.getName());
+        byte[] pdf = ticketService.getCombinedTicketPdf(request.bookingIds(), requestingUserId, isAdmin(authentication));
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"tickets.pdf\"")
+                .body(pdf);
+    }
+
+    @PostMapping("/bookings/tickets/combined/share")
+    public ShareLinkResponse createCombinedShareLink(@Valid @RequestBody CombinedTicketRequest request, Authentication authentication) {
+        UUID requestingUserId = UUID.fromString(authentication.getName());
+        String tokens = ticketService.createCombinedShareLink(request.bookingIds(), requestingUserId, isAdmin(authentication));
+        return new ShareLinkResponse("/t/group/" + tokens);
+    }
+
     /** Public, unauthenticated — this is the URL a recipient opens from a shared link, no app or account needed. */
     @GetMapping(value = "/t/{shareToken}", produces = MediaType.TEXT_HTML_VALUE)
     public String viewSharedTicket(@PathVariable String shareToken) {
         SharedTicketView view = ticketService.getSharedTicketView(shareToken);
         return renderHtml(view);
+    }
+
+    /** Public, unauthenticated — same idea as {@link #viewSharedTicket}, but for a whole booking group's worth of seats on one page. */
+    @GetMapping(value = "/t/group/{tokens}", produces = MediaType.TEXT_HTML_VALUE)
+    public String viewCombinedSharedTicket(@PathVariable String tokens) {
+        List<SharedTicketView> views = Arrays.stream(tokens.split(","))
+                .map(ticketService::getSharedTicketView)
+                .toList();
+        return renderCombinedHtml(views);
     }
 
     /** Staff/gate app only — scans the QR and posts its raw payload here. */
@@ -105,6 +139,57 @@ public class TicketController {
                 seat.rowLabel(), seat.seatNumber(), seat.seatType(),
                 view.bookingId(),
                 view.qrPngBase64());
+    }
+
+    private String renderCombinedHtml(List<SharedTicketView> views) {
+        var first = views.get(0).seat();
+        StringBuilder seatsHtml = new StringBuilder();
+        for (SharedTicketView view : views) {
+            var seat = view.seat();
+            seatsHtml.append("""
+                    <div class="seat-card">
+                        <div class="status">%s</div>
+                        <div class="details">
+                            <div>Seat: %s%d (%s)</div>
+                            <div>Booking ID: %s</div>
+                        </div>
+                        <img src="data:image/png;base64,%s" alt="Ticket QR code">
+                    </div>
+                    """.formatted(
+                    view.status(), seat.rowLabel(), seat.seatNumber(), seat.seatType(),
+                    view.bookingId(), view.qrPngBase64()));
+        }
+
+        return """
+                <!doctype html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Tickets</title>
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <style>
+                        body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; text-align: center; }
+                        h1 { font-size: 1.4rem; }
+                        .venue { color: #555; margin-bottom: 8px; }
+                        .seat-card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-top: 20px; }
+                        .status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;
+                                  background: #2563eb; color: white; margin-bottom: 8px; }
+                        .details { text-align: left; line-height: 1.6; }
+                        img { margin-top: 12px; width: 200px; height: 200px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>%s</h1>
+                    <div class="venue">%s &middot; %s</div>
+                    <div>%d seat%s on this ticket</div>
+                    %s
+                </body>
+                </html>
+                """.formatted(
+                escape(first.eventTitle()),
+                escape(first.venueName()), first.startTime(),
+                views.size(), views.size() == 1 ? "" : "s",
+                seatsHtml);
     }
 
     private String statusColor(String status) {

@@ -11,7 +11,10 @@ import java.util.UUID;
 @Component
 public class PaymentServiceClient {
 
-    private record PaymentResponse(UUID id, UUID bookingId, BigDecimal amount, String currency, String status) {
+    // payment-service now returns bookingIds (plural, one payment can cover
+    // several bookings) — this client only ever reads amount/currency/status,
+    // so the id fields are intentionally omitted rather than mirrored.
+    private record PaymentResponse(UUID id, BigDecimal amount, String currency, String status) {
     }
 
     private final RestClient paymentServiceRestClient;

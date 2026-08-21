@@ -50,7 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/bookings/*/confirm", "/bookings/*/cancel").permitAll()
                         // Public — this is the URL opened from a shared ticket
                         // link (e.g. WhatsApp); the recipient has no account.
-                        .requestMatchers(HttpMethod.GET, "/t/*").permitAll()
+                        // /t/group/* is the same idea for a multi-seat combined ticket.
+                        .requestMatchers(HttpMethod.GET, "/t/*", "/t/group/*").permitAll()
                         // Gate/staff app only — scans a QR and posts it here.
                         // The endpoint's real security is the HMAC signature
                         // check inside TicketService, but role-gating it too

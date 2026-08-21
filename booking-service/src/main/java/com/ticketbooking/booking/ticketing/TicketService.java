@@ -21,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -91,6 +93,43 @@ public class TicketService {
         }
         Ticket ticket = findTicketOrThrow(bookingId);
         return storageService.download(ticket.getPdfObjectKey());
+    }
+
+    /**
+     * Renders a single PDF spanning every seat in one booking group (one
+     * checkout's worth of bookings) — one page per seat, each with its own
+     * QR, but one file/download/view instead of a separate ticket per seat.
+     * Built on demand from the already-generated per-seat Ticket rows rather
+     * than stored, since it's just a different presentation of existing data.
+     */
+    @Transactional(readOnly = true)
+    public byte[] getCombinedTicketPdf(List<UUID> bookingIds, UUID requestingUserId, boolean isAdmin) {
+        List<TicketPdfGenerator.TicketLine> lines = new ArrayList<>();
+        for (UUID bookingId : bookingIds) {
+            Booking booking = findBookingOrThrow(bookingId);
+            if (!isAdmin && !booking.getUserId().equals(requestingUserId)) {
+                throw new ResourceNotFoundException("Booking not found: " + bookingId);
+            }
+            Ticket ticket = findTicketOrThrow(bookingId);
+            SeatDetails seat = eventServiceClient.getSeatDetails(booking.getShowId(), booking.getSeatId());
+            byte[] qrPng = qrCodeGenerator.generatePng(ticket.getQrPayload());
+            lines.add(new TicketPdfGenerator.TicketLine(bookingId, seat, qrPng));
+        }
+        return pdfGenerator.generateCombined(lines);
+    }
+
+    /**
+     * Issues a share token per booking (reusing {@link #createShareLink}) and
+     * hands back all of them joined by comma — the public {@code /t/group/...}
+     * route splits on that to render every seat on one shared page.
+     */
+    @Transactional
+    public String createCombinedShareLink(List<UUID> bookingIds, UUID requestingUserId, boolean isAdmin) {
+        List<String> tokens = new ArrayList<>();
+        for (UUID bookingId : bookingIds) {
+            tokens.add(createShareLink(bookingId, requestingUserId, isAdmin));
+        }
+        return String.join(",", tokens);
     }
 
     @Transactional

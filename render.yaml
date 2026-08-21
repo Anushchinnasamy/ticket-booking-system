@@ -88,10 +88,8 @@ services:
   - type: pserv
     name: event-service
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./event-service/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: event-service
     plan: starter
     envVars:
       - key: SPRING_DATASOURCE_URL
@@ -122,10 +120,8 @@ services:
   - type: pserv
     name: booking-service
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./booking-service/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: booking-service
     plan: starter
     envVars:
       - key: SPRING_DATASOURCE_URL
@@ -166,10 +162,8 @@ services:
   - type: pserv
     name: payment-service
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./payment-service/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: payment-service
     plan: starter
     envVars:
       - key: SPRING_DATASOURCE_URL
@@ -194,10 +188,8 @@ services:
   - type: pserv
     name: user-service
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./user-service/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: user-service
     plan: starter
     envVars:
       - key: SPRING_DATASOURCE_URL
@@ -228,10 +220,8 @@ services:
   - type: pserv
     name: notification-service
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./notification-service/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: notification-service
     plan: starter
     envVars:
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
@@ -250,10 +240,8 @@ services:
   - type: web
     name: api-gateway
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./api-gateway/Dockerfile
     dockerContext: .
-    dockerBuildArgs:
-      SERVICE_NAME: api-gateway
     plan: starter
     envVars:
       - key: SPRING_DATA_REDIS_HOST

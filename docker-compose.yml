@@ -147,9 +147,7 @@ services:
   event-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: event-service
+      dockerfile: event-service/Dockerfile
     container_name: event-service
     depends_on:
       postgres-event:
@@ -176,9 +174,7 @@ services:
   booking-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: booking-service
+      dockerfile: booking-service/Dockerfile
     container_name: booking-service
     depends_on:
       postgres-booking:
@@ -214,9 +210,7 @@ services:
   payment-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: payment-service
+      dockerfile: payment-service/Dockerfile
     container_name: payment-service
     depends_on:
       postgres-payment:
@@ -242,9 +236,7 @@ services:
   user-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: user-service
+      dockerfile: user-service/Dockerfile
     container_name: user-service
     depends_on:
       postgres-user:
@@ -271,9 +263,7 @@ services:
   notification-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: notification-service
+      dockerfile: notification-service/Dockerfile
     container_name: notification-service
     depends_on:
       kafka:
@@ -305,9 +295,7 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: api-gateway
+      dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
     depends_on:
       redis:

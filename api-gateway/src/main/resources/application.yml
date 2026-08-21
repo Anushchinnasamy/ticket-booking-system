@@ -10,6 +10,31 @@ spring:
       port: 6379
   cloud:
     gateway:
+      # Dev-only: lets the Vite frontend (a different origin) call this
+      # gateway from a real browser. Never exercised before now — every
+      # prior verification hit these routes via curl/backend calls, which
+      # aren't subject to CORS. Tighten/remove before any real deployment.
+      globalcors:
+        # Without this, CORS config only attaches to the GatewayFilterChain
+        # (post-routing) — a preflight OPTIONS request doesn't match any
+        # route below (they're all pinned to specific non-OPTIONS methods),
+        # so it never reaches that chain and gets rejected with a bare 403
+        # before the CORS headers are ever added. This registers CORS at the
+        # handler-mapping level instead, so preflight is answered directly.
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - HEAD
+            allowedHeaders: "*"
+            allowCredentials: true
       # Every route below is deliberately scoped to only the paths and HTTP
       # methods that are genuinely customer/staff-facing (see each service's
       # SecurityConfig for which endpoints are marked "internal, service-to-
@@ -43,7 +68,9 @@ spring:
         - id: booking-ticket
           uri: http://localhost:8082
           predicates:
-            - Method=GET
+            # HEAD too — the frontend polls ticket readiness with a HEAD
+            # request (see waitForTicketReady) before the real GET download.
+            - Method=GET,HEAD
             - Path=/bookings/*/ticket
 
         - id: booking-share-create
@@ -57,6 +84,24 @@ spring:
           predicates:
             - Method=GET
             - Path=/t/*
+
+        - id: booking-ticket-combined
+          uri: http://localhost:8082
+          predicates:
+            - Method=POST
+            - Path=/bookings/tickets/combined
+
+        - id: booking-share-combined-create
+          uri: http://localhost:8082
+          predicates:
+            - Method=POST
+            - Path=/bookings/tickets/combined/share
+
+        - id: booking-share-combined-view
+          uri: http://localhost:8082
+          predicates:
+            - Method=GET
+            - Path=/t/group/*
 
         - id: booking-redeem
           uri: http://localhost:8082

@@ -60,13 +60,13 @@ export function MyBookings() {
       <div className="flex gap-2.5">
         <button
           onClick={() => setTab('upcoming')}
-          className={`rounded-full px-5 py-2.5 text-sm font-semibold cursor-pointer ${tab === 'upcoming' ? 'bg-accent' : 'border border-border bg-surface text-text-secondary'}`}
+          className={`rounded-full px-5 py-2.5 text-sm font-semibold cursor-pointer ${tab === 'upcoming' ? 'bg-accent text-obsidian' : 'border border-border bg-surface text-text-secondary'}`}
         >
           Upcoming ({upcoming.length})
         </button>
         <button
           onClick={() => setTab('past')}
-          className={`rounded-full px-5 py-2.5 text-sm font-semibold cursor-pointer ${tab === 'past' ? 'bg-accent' : 'border border-border bg-surface text-text-secondary'}`}
+          className={`rounded-full px-5 py-2.5 text-sm font-semibold cursor-pointer ${tab === 'past' ? 'bg-accent text-obsidian' : 'border border-border bg-surface text-text-secondary'}`}
         >
           Past ({past.length})
         </button>
@@ -78,7 +78,7 @@ export function MyBookings() {
         </div>
       ) : list.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#3A3A3E" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--color-cinema-muted-gray)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 10a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.5 1.5 0 0 0 0 3V16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5a1.5 1.5 0 0 0 0-3z" />
             <path d="M9 8v10" strokeDasharray="2.5 3" />
           </svg>
@@ -86,7 +86,7 @@ export function MyBookings() {
             {tab === 'upcoming' ? 'No upcoming bookings' : 'No past bookings'}
           </div>
           <p className="max-w-xs text-sm text-text-secondary">Explore what's playing near you and book your first show in seconds.</p>
-          <Link to="/" className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold cursor-pointer">Explore Shows</Link>
+          <Link to="/" className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-obsidian cursor-pointer">Explore Shows</Link>
         </div>
       ) : (
         <div className="flex flex-col gap-5">

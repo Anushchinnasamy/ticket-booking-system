@@ -83,10 +83,10 @@ export function Payment() {
       key: charge.razorpayKeyId,
       amount: Math.round(state.total * 100),
       currency: 'INR',
-      name: 'ReelRow',
+      name: 'TickIT',
       description: `${state.eventTitle ?? 'Booking'} — ${seats.length} seat${seats.length === 1 ? '' : 's'} (${seats.map((s) => s.label).join(', ')})`,
       order_id: charge.razorpayOrderId,
-      theme: { color: '#E23744' },
+      theme: { color: '#F5A623' },
     })
 
     if (outcome.kind === 'success') {
@@ -140,7 +140,7 @@ export function Payment() {
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
         <div className="font-display text-lg font-bold">Nothing to pay for</div>
         <p className="max-w-sm text-sm text-text-secondary">This page needs seats selected first — go pick some.</p>
-        <button onClick={() => navigate('/')} className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold cursor-pointer">
+        <button onClick={() => navigate('/')} className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-obsidian cursor-pointer">
           Back to Home
         </button>
       </div>
@@ -159,14 +159,17 @@ export function Payment() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2.5 rounded-2xl bg-surface p-5">
+        {/* Cream editorial surface (plan section 1: "Cream is useful for
+            editorial detail/payment surfaces") — a calmer, receipt-like
+            moment against the seat page's darker energy. */}
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-cinema-cream p-5 text-obsidian">
           {seats.map((seat) => (
             <div key={seat.bookingId} className="flex items-center justify-between">
               <div className="text-sm font-semibold">Seat {seat.label}</div>
-              <div className="font-variant-numeric-tabular text-sm text-text-secondary">₹{seat.price}</div>
+              <div className="font-variant-numeric-tabular text-sm text-obsidian/65">₹{seat.price}</div>
             </div>
           ))}
-          <div className="mt-1 flex justify-between border-t border-border pt-3 text-[15px] font-bold">
+          <div className="mt-1 flex justify-between border-t border-obsidian/15 pt-3 text-[15px] font-bold">
             <span>Total</span>
             <span className="font-variant-numeric-tabular">₹{state.total}</span>
           </div>
@@ -190,7 +193,7 @@ export function Payment() {
           <button
             onClick={startCheckout}
             disabled={busy}
-            className="rounded-xl bg-accent py-4 text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="rounded-xl bg-accent py-4 text-[15px] font-bold text-obsidian shadow-[0_10px_26px_rgba(245,166,35,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {status === 'failed' ? `Retry — Pay ₹${state.total}` : busy ? 'Processing…' : `Pay ₹${state.total}`}
           </button>

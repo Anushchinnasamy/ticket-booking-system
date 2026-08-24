@@ -1,46 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0E0E10;
-  --color-surface: #1A1A1D;
-  --color-surface-raised: #232326;
-  --color-surface-sunken: #1C1C1F;
-  --color-accent: #E23744;
-  --color-accent-dim: #5A1218;
-  --color-gold: #F5C518;
-  --color-text-primary: #F5F5F7;
-  --color-text-secondary: #9A9AA2;
-  --color-text-soft: #C9C9CE;
-  --color-text-muted: #7A7A80;
-  --color-border: #262629;
-  --color-border-muted: #2A2A2E;
-  --color-divider: #1E1E21;
+  /* Cinematic Gold raw palette (plan section 1) — reference these directly
+     for treatments the semantic tokens below don't cover, e.g. the purple
+     auditorium ambience or cream editorial/payment surfaces. */
+  --color-obsidian: #080808;
+  --color-cinema-black: #111111;
+  --color-cinema-gold: #F5A623;
+  --color-warm-gold: #FFC857;
+  --color-cinema-cream: #F5EBDD;
+  --color-purple-ambient: #6D3CFF;
+  --color-cinema-muted-gray: #777777;
+
+  --color-bg: #080808;
+  --color-surface: #111111;
+  --color-surface-raised: #1A1710;
+  --color-surface-sunken: #0C0C0C;
+  --color-accent: #F5A623;
+  --color-accent-dim: #3A2A0E;
+  --color-gold: #F5A623;
+  --color-text-primary: #F5F3EE;
+  --color-text-secondary: #A8A29A;
+  --color-text-soft: #C9C3B8;
+  --color-text-muted: #777777;
+  --color-border: #262320;
+  --color-border-muted: #1E1B18;
+  --color-divider: #171512;
   --color-success: #2ECC71;
   --color-danger: #FF4D4D;
 
-  --font-display: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Playfair Display', 'Georgia', serif;
   --font-body: 'Inter', system-ui, sans-serif;
 }
 
-/* Light palette — same token names, swapped values, picked up automatically
-   by every utility class built on these tokens. Toggled via themeStore,
-   which stamps data-theme on <html>. */
+/* Light palette — Cream editorial surface (plan: "Cream is useful for
+   editorial detail/payment surfaces"), same token names so every utility
+   class built on these tokens picks it up automatically. Toggled via
+   themeStore, which stamps data-theme on <html>. */
 :root[data-theme='light'] {
-  --color-bg: #FAFAFB;
-  --color-surface: #F5F5F7;
+  --color-bg: #F5EBDD;
+  --color-surface: #FFFFFF;
   --color-surface-raised: #FFFFFF;
-  --color-surface-sunken: #EFEFF2;
-  --color-accent: #E23744;
-  --color-accent-dim: #FBDCDE;
-  --color-gold: #9C7A12;
-  --color-text-primary: #17171A;
-  --color-text-secondary: #5B5B63;
-  --color-text-soft: #46464C;
-  --color-text-muted: #86868C;
-  --color-border: #E3E3E8;
-  --color-border-muted: #D6D6DB;
-  --color-divider: #ECECEF;
+  --color-surface-sunken: #EFE4D2;
+  --color-accent: #A6740F;
+  --color-accent-dim: #EEDFC2;
+  --color-gold: #A6740F;
+  --color-text-primary: #1C1810;
+  --color-text-secondary: #5B5347;
+  --color-text-soft: #453F35;
+  --color-text-muted: #837A6B;
+  --color-border: #E3D7C1;
+  --color-border-muted: #D6C8AC;
+  --color-divider: #ECE0CA;
   --color-success: #1C8F4E;
   --color-danger: #D62839;
 }
@@ -59,8 +71,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Visible keyboard focus everywhere — a color shift alone isn't enough. */
-:focus-visible {
+/* Visible keyboard focus everywhere — a color shift alone isn't enough.
+   Text inputs are excluded: every one in this app already has its own
+   bespoke focus treatment (border/underline color change), so this outline
+   only ever showed up as a redundant box on top of that. */
+:focus-visible:not(input) {
   outline: 2.5px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 4px;

@@ -2,12 +2,25 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { PlacedSeat } from './layout'
+import type { SeatType } from '../../types/seat'
 
+// Cinematic Gold seat states (plan section 13): available seats read as
+// subtle white/purple, tinted warmer for the PREMIUM tier; selected glows
+// gold; booked is muted gray; a seat held by someone else stays a clear
+// warning red so it's never mistaken for "selected".
+const AVAILABLE_BY_TIER: Record<SeatType, THREE.Color> = {
+  REGULAR: new THREE.Color('#B7B2CC'),
+  VIP: new THREE.Color('#D9D2F5'),
+  PREMIUM: new THREE.Color('#FFC857'),
+}
+const AVAILABLE_HOVER_BY_TIER: Record<SeatType, THREE.Color> = {
+  REGULAR: new THREE.Color('#CFC9E8'),
+  VIP: new THREE.Color('#EDE7FF'),
+  PREMIUM: new THREE.Color('#FFDA94'),
+}
 const COLORS = {
-  available: new THREE.Color('#2ECC71'),
-  availableHover: new THREE.Color('#5EE79A'),
-  selected: new THREE.Color('#E23744'),
-  locking: new THREE.Color('#E2374488'),
+  selected: new THREE.Color('#F5A623'),
+  locking: new THREE.Color('#F5A62388'),
   lockedByOther: new THREE.Color('#FF4D4D'),
   booked: new THREE.Color('#3A3A3E'),
 }
@@ -48,7 +61,7 @@ export function SeatInstances({ placed, selectedIds, lockingIds, onSeatClick }: 
       } else if (seat.status === 'LOCKED') {
         color = COLORS.lockedByOther
       } else {
-        color = i === hovered ? COLORS.availableHover : COLORS.available
+        color = i === hovered ? AVAILABLE_HOVER_BY_TIER[seat.seatType] : AVAILABLE_BY_TIER[seat.seatType]
       }
       mesh.setColorAt(i, color)
     })

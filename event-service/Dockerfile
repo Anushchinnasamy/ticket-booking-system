@@ -17,7 +17,7 @@ COPY user-service ./user-service
 COPY notification-service ./notification-service
 COPY api-gateway ./api-gateway
 
-RUN mvn -pl event-service,common-lib -am package -DskipTests -q
+RUN mvn -pl event-service,common-lib -am package -Dmaven.test.skip=true -q
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app

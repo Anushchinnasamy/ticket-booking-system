@@ -11,7 +11,7 @@ export function CategoryTab({ label, active, onClick }: CategoryTabProps) {
       className={[
         'flex-shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 text-[13px] font-medium transition-colors duration-150 cursor-pointer',
         active
-          ? 'bg-accent font-semibold text-text-primary'
+          ? 'bg-accent font-semibold text-obsidian'
           : 'border border-surface-raised bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary',
       ].join(' ')}
     >

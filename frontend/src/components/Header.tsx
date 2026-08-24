@@ -9,7 +9,7 @@ import type { EventCategory } from '../types/event'
 const NAV_LINKS: { label: string; to: string; category?: EventCategory }[] = [
   { label: 'Movies', to: '/search', category: 'MOVIE' },
   { label: 'Events', to: '/search', category: 'CONCERT' },
-  { label: 'Sports', to: '/search', category: 'SPORTS' },
+  { label: 'Sports', to: '/sports' },
   { label: 'Plays', to: '/plays' },
   { label: 'Live', to: '/live' },
 ]
@@ -25,11 +25,11 @@ export function Header() {
     <header className="flex h-[76px] items-center justify-between gap-3 border-b border-divider px-4 sm:px-6 lg:px-[90px]">
       <div className="flex items-center gap-5 lg:gap-11">
         <Link to="/" className="flex flex-shrink-0 items-center gap-2">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E23744" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--color-gold)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="M9 9l6 3-6 3z" fill="#E23744" stroke="none" />
+            <path d="M9 9l6 3-6 3z" fill="var(--color-gold)" stroke="none" />
           </svg>
-          <span className="font-display text-lg font-extrabold tracking-tight">ReelRow</span>
+          <span className="font-display text-xl font-bold tracking-tight">TickIT</span>
         </Link>
         <nav className="hidden items-center gap-7 lg:flex">
           {NAV_LINKS.map((link) => (
@@ -62,12 +62,12 @@ export function Header() {
 
         {isAuthenticated ? (
           <Link to="/my-bookings" className="flex cursor-pointer items-center gap-2.5">
-            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-accent font-display text-[13px] font-bold">A</div>
+            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-accent font-display text-[13px] font-bold text-obsidian">A</div>
           </Link>
         ) : (
           <Link
             to="/login"
-            className="rounded-lg bg-accent px-3.5 py-2.5 text-[13.5px] font-semibold text-text-primary cursor-pointer sm:px-[22px]"
+            className="rounded-lg bg-accent px-3.5 py-2.5 text-[13.5px] font-semibold text-obsidian cursor-pointer sm:px-[22px]"
           >
             Sign In
           </Link>

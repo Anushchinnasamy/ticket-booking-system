@@ -9,6 +9,16 @@ interface HeroCarouselProps {
 
 const AUTO_ADVANCE_MS = 5000
 
+// Trending can surface any category (see Home.tsx), not just movies — this
+// used to hardcode "In cinemas now" under every slide, which was wrong the
+// moment a concert or sports fixture showed up here.
+const CATEGORY_TAGLINE: Record<EnrichedEvent['category'], string> = {
+  MOVIE: 'In cinemas now',
+  CONCERT: 'Live in concert',
+  SPORTS: 'Live sporting event',
+  COMEDY: 'Live comedy show',
+}
+
 export function HeroCarousel({ slides }: HeroCarouselProps) {
   const [index, setIndex] = useState(0)
   const prefersReducedMotion = useReducedMotion()
@@ -54,10 +64,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           TRENDING NOW
         </span>
         <div className="font-display text-[22px] font-extrabold leading-[1.1] tracking-tight sm:text-[32px] lg:text-[44px] lg:leading-[1.05]">{slide.title}</div>
-        <div className="mt-2 text-[13px] text-text-soft sm:mt-3 sm:text-[15px]">{slide.category} &middot; In cinemas now</div>
+        <div className="mt-2 text-[13px] text-text-soft sm:mt-3 sm:text-[15px]">{slide.category} &middot; {CATEGORY_TAGLINE[slide.category]}</div>
         <button
           onClick={() => navigate(`/events/${slide.id}`)}
-          className="mt-3.5 rounded-[10px] bg-accent px-5 py-2.5 text-[13px] font-semibold shadow-[0_8px_24px_rgba(226,55,68,0.35)] cursor-pointer sm:mt-6 sm:px-[30px] sm:py-3 sm:text-sm"
+          className="mt-3.5 rounded-[10px] bg-accent px-5 py-2.5 text-[13px] font-semibold text-obsidian shadow-[0_8px_24px_rgba(226,55,68,0.35)] cursor-pointer sm:mt-6 sm:px-[30px] sm:py-3 sm:text-sm"
         >
           Book Tickets
         </button>

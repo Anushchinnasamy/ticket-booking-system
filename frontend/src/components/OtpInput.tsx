@@ -55,7 +55,7 @@ export function OtpInput({ value, onChange, length = 6, disabled }: OtpInputProp
           onPaste={handlePaste}
           inputMode="numeric"
           maxLength={1}
-          className="h-13 w-11 rounded-xl border-[1.5px] border-border bg-surface text-center font-display text-xl font-bold text-text-primary focus:border-accent focus:outline-none disabled:opacity-60 sm:h-16 sm:w-[54px] sm:text-2xl"
+          className="h-13 w-11 rounded-xl border-[1.5px] border-border bg-surface text-center font-display text-xl font-bold text-text-primary outline-none! focus:border-accent disabled:opacity-60 sm:h-16 sm:w-[54px] sm:text-2xl"
         />
       ))}
     </div>

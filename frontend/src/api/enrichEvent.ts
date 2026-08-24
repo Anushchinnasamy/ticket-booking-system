@@ -13,14 +13,29 @@ import poster10 from '../assets/posters/poster-10.jpg'
 import posterJurassic from '../assets/posters/poster-jurassic.jpg'
 import posterBladeRunner from '../assets/posters/poster-bladerunner.jpg'
 import posterArrival from '../assets/posters/poster-arrival.jpg'
+import categoryMovie from '../assets/categories/category-movie.png'
+import categoryConcert from '../assets/categories/category-concert.png'
+import categorySport from '../assets/categories/category-sport.png'
 
 const POSTERS = [poster1, poster2, poster3, poster4, poster5, poster6, poster7, poster8, poster9, poster10]
 
+// One real photo per category (from the same clean image set used on the
+// login carousel — see images/login/), used everywhere a category is known.
+// event-service has no per-event image field, so rather than a hash-assigned
+// stock-photo lottery per event, every event in a category now shares one
+// deliberately-chosen real photo for that category. COMEDY has no equivalent
+// photo in that set, so it (and any category-less caller — see
+// POSTER_OVERRIDES below) keeps the old per-id/per-title assignment.
+const CATEGORY_IMAGES: Partial<Record<EventCategory, string>> = {
+  MOVIE: categoryMovie,
+  CONCERT: categoryConcert,
+  SPORTS: categorySport,
+}
+
 // Curated (not hash-assigned) posters for a few named movies in the seed
-// catalog — event-service still has no posterUrl field, so this is a
-// hand-picked override keyed by title (not id, which changes across catalog
-// migrations), layered over the generic deterministic assignment every
-// other event still gets.
+// catalog — only reachable now via the category-less fallback (e.g.
+// MyBookings, which doesn't carry category on its client-tracked records),
+// since every event with a known category above always wins first.
 const POSTER_OVERRIDES: Record<string, string> = {
   'jurassic park': posterJurassic,
   'blade runner 2049': posterBladeRunner,
@@ -44,8 +59,10 @@ function hashString(str: string): number {
   return Math.abs(h)
 }
 
-/** Same poster an event gets everywhere else in the app. */
-export function pickPoster(id: string, title?: string): string {
+/** Same poster/image an event gets everywhere else in the app. */
+export function pickPoster(id: string, title?: string, category?: EventCategory): string {
+  const categoryImage = category ? CATEGORY_IMAGES[category] : undefined
+  if (categoryImage) return categoryImage
   const override = title ? POSTER_OVERRIDES[title.trim().toLowerCase()] : undefined
   return override ?? POSTERS[hashString(id) % POSTERS.length]
 }
@@ -68,7 +85,7 @@ export function enrichEvent(event: EventSummaryResponse): EnrichedEvent {
 
   return {
     ...event,
-    posterUrl: pickPoster(event.id, event.title),
+    posterUrl: pickPoster(event.id, event.title, event.category),
     rating: Math.round((6.5 + (h % 31) / 10) * 10) / 10,
     price: min + (h % (max - min)),
     bookedCount: `${((h % 320) / 10 + 1).toFixed(1)}K`,

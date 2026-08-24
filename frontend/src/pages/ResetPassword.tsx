@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { resetPassword, AuthError } from '../api/auth'
-import { PosterCollagePanel } from '../components/PosterCollagePanel'
+import { PosterCollagePanel, MobileAuthAccent } from '../components/PosterCollagePanel'
 
 export function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -36,10 +36,10 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="flex min-h-screen bg-bg text-text-primary">
+    <div className="flex min-h-screen flex-col bg-bg text-text-primary lg:flex-row">
       <PosterCollagePanel />
 
-      <div className="flex flex-1 items-center justify-center px-4 sm:px-6">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         {done ? (
           <div className="flex w-full max-w-[380px] flex-col items-center gap-4 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/12">
@@ -47,7 +47,7 @@ export function ResetPassword() {
             </div>
             <div className="font-display text-2xl font-extrabold tracking-tight">Password updated</div>
             <p className="text-[13.5px] text-text-secondary">You can now log in with your new password.</p>
-            <Link to="/login" className="mt-2 w-full rounded-xl bg-accent py-3.5 text-center text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] cursor-pointer">
+            <Link to="/login" className="mt-2 w-full rounded-xl bg-accent py-3.5 text-center text-[15px] font-bold text-obsidian shadow-[0_10px_26px_rgba(245,166,35,0.35)] cursor-pointer">
               Go to Log In
             </Link>
           </div>
@@ -92,13 +92,14 @@ export function ResetPassword() {
             <button
               type="submit"
               disabled={submitting || !token}
-              className="rounded-xl bg-accent py-3.5 text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="rounded-xl bg-accent py-3.5 text-[15px] font-bold text-obsidian shadow-[0_10px_26px_rgba(245,166,35,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {submitting ? 'Updating…' : 'Update Password'}
             </button>
           </form>
         )}
       </div>
+      <MobileAuthAccent />
     </div>
   )
 }

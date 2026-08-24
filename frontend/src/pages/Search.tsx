@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CategoryTab } from '../components/CategoryTab'
 import { MovieCard } from '../components/MovieCard'
 import { CardSkeleton } from '../components/CardSkeleton'
+import { EmptyState } from '../components/EmptyState'
 import { fetchEvents } from '../api/events'
 import { useCity } from '../hooks/useCity'
 import type { EnrichedEvent, EventCategory } from '../types/event'
@@ -60,19 +61,24 @@ export function Search() {
   }, [allEvents, category, debouncedQuery])
 
   return (
-    <div className="flex flex-col gap-5 px-4 pb-20 pt-7 sm:px-6 lg:px-[90px]">
-      <div className="mx-auto flex w-full max-w-[520px] items-center gap-2.5 rounded-[10px] border border-accent bg-surface px-4 py-2.5">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M21 21l-4.3-4.3" />
-        </svg>
-        <input
-          autoFocus
-          value={rawQuery}
-          onChange={(e) => setRawQuery(e.target.value)}
-          placeholder="Search for movies, events, plays..."
-          className="w-full bg-transparent text-[13.5px] text-text-primary placeholder:text-text-secondary focus:outline-none"
-        />
+    <div className="flex flex-col gap-8 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:px-[90px]">
+      <div className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-6 text-center">
+        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold">Search</span>
+        <h1 className="font-display text-[28px] font-bold tracking-tight sm:text-[38px]">What are you in the mood for?</h1>
+
+        <div className="flex w-full items-center gap-3 border-b-2 border-border pb-3 transition-colors focus-within:border-gold">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+          <input
+            autoFocus
+            value={rawQuery}
+            onChange={(e) => setRawQuery(e.target.value)}
+            placeholder="Search movies, events, plays..."
+            className="w-full bg-transparent text-base text-text-primary placeholder:text-text-secondary focus:outline-none"
+          />
+        </div>
       </div>
 
       <div className="text-center text-[13px] text-text-secondary">
@@ -95,9 +101,8 @@ export function Search() {
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)
         ) : results.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center gap-2 py-20 text-center">
-            <div className="font-display text-lg font-bold">No matches</div>
-            <div className="text-sm text-text-secondary">Try a different title or category.</div>
+          <div className="col-span-full">
+            <EmptyState title="NO MATCHES" message="Try a different title or category." />
           </div>
         ) : (
           results.map((event) => (

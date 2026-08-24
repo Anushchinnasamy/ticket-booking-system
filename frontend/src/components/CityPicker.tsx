@@ -30,7 +30,7 @@ export function CityPicker() {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E23744" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-gold)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
           <circle cx="12" cy="9.5" r="2.3" />
         </svg>

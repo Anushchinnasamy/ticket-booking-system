@@ -16,9 +16,9 @@ const SeatAuditorium3D = lazy(() => import('../components/seat3d/SeatAuditorium3
 const POLL_INTERVAL_MS = 4000
 
 const TIER_INFO: Record<SeatType, { name: string; border: string }> = {
-  VIP: { name: 'VIP', border: '#F5C518' },
-  PREMIUM: { name: 'Premium', border: '#E23744' },
-  REGULAR: { name: 'Regular', border: '#5A5A5F' },
+  VIP: { name: 'VIP', border: '#F5A623' },
+  PREMIUM: { name: 'Premium', border: '#FFC857' },
+  REGULAR: { name: 'Regular', border: '#777777' },
 }
 
 function formatTime(iso: string) {
@@ -268,7 +268,7 @@ export function SeatSelection() {
           </div>
           <button
             onClick={() => setSeatCountConfirmed(true)}
-            className="rounded-xl bg-accent px-8 py-3 text-sm font-bold cursor-pointer"
+            className="rounded-xl bg-accent px-8 py-3 text-sm font-bold text-obsidian cursor-pointer"
           >
             Continue
           </button>
@@ -292,7 +292,7 @@ export function SeatSelection() {
                 Available
               </div>
               <div className="flex items-center gap-2 text-xs text-text-secondary">
-                <div className="h-[18px] w-[18px] rounded-[5px] bg-accent" />
+                <div className="h-[18px] w-[18px] rounded-[5px] bg-accent shadow-[0_0_10px_rgba(245,166,35,0.5)]" />
                 Selected
               </div>
               <div className="flex items-center gap-2 text-xs text-text-secondary">
@@ -309,13 +309,13 @@ export function SeatSelection() {
           <div className="flex gap-1.5 rounded-full bg-surface p-1">
             <button
               onClick={() => setView3D(false)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold cursor-pointer ${!view3D ? 'bg-accent text-text-primary' : 'text-text-secondary'}`}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold cursor-pointer ${!view3D ? 'bg-accent text-obsidian' : 'text-text-secondary'}`}
             >
               2D
             </button>
             <button
               onClick={() => setView3D(true)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold cursor-pointer ${view3D ? 'bg-accent text-text-primary' : 'text-text-secondary'}`}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold cursor-pointer ${view3D ? 'bg-accent text-obsidian' : 'text-text-secondary'}`}
             >
               3D Auditorium
             </button>
@@ -340,16 +340,16 @@ export function SeatSelection() {
           ) : (
             <>
               <svg className="w-full max-w-[480px]" height="48" viewBox="0 0 480 48" preserveAspectRatio="xMidYMid meet">
-                <path d="M 8 44 Q 240 -8 472 44" stroke="#5A5A5F" strokeWidth="2" fill="none" />
+                <path d="M 8 44 Q 240 -8 472 44" stroke="var(--color-cinema-muted-gray)" strokeWidth="2" fill="none" />
               </svg>
-              <div className="-mt-6 text-[11px] tracking-[0.2em] text-[#5A5A5F]">SCREEN THIS WAY</div>
+              <div className="-mt-6 text-[11px] tracking-[0.2em] text-text-muted">SCREEN THIS WAY</div>
 
               <div className="flex w-full min-w-0 max-w-full flex-col gap-2.5 overflow-x-auto pt-3">
                 {rows.map(([rowLabel, seats]) => {
                   const mid = Math.floor(seats.length / 2)
                   return (
                     <div key={rowLabel} className="flex items-center gap-3.5">
-                      <div className="w-4 flex-shrink-0 text-center text-[11px] font-semibold text-[#5A5A5F]">{rowLabel}</div>
+                      <div className="w-4 flex-shrink-0 text-center text-[11px] font-semibold text-text-muted">{rowLabel}</div>
                       <div className="flex">
                         {seats.map((seat, i) => (
                           <div key={seat.id} style={{ marginRight: i === mid - 1 ? '18px' : '4px' }}>
@@ -362,7 +362,7 @@ export function SeatSelection() {
                           </div>
                         ))}
                       </div>
-                      <div className="w-4 flex-shrink-0 text-center text-[11px] font-semibold text-[#5A5A5F]">{rowLabel}</div>
+                      <div className="w-4 flex-shrink-0 text-center text-[11px] font-semibold text-text-muted">{rowLabel}</div>
                     </div>
                   )
                 })}
@@ -417,7 +417,7 @@ export function SeatSelection() {
           <button
             onClick={handleProceed}
             disabled={selectedSeats.length === 0}
-            className="rounded-xl bg-accent py-4 text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] disabled:cursor-not-allowed disabled:bg-border-muted disabled:text-text-muted disabled:shadow-none cursor-pointer"
+            className="rounded-xl bg-accent py-4 text-[15px] font-bold text-obsidian shadow-[0_10px_26px_rgba(245,166,35,0.35)] disabled:cursor-not-allowed disabled:bg-border-muted disabled:text-text-muted disabled:shadow-none cursor-pointer"
           >
             Proceed to Pay
           </button>

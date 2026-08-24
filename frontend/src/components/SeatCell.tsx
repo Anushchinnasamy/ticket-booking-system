@@ -9,9 +9,9 @@ interface SeatCellProps {
 }
 
 const TIER_BORDER: Record<SeatType, string> = {
-  VIP: '#F5C51866',
-  PREMIUM: '#E2374466',
-  REGULAR: '#5A5A5F66',
+  VIP: '#F5A62366',
+  PREMIUM: '#FFC85788',
+  REGULAR: '#77777766',
 }
 
 /**
@@ -37,8 +37,8 @@ export function SeatCell({ seat, selected, locking, onClick }: SeatCellProps) {
   let style: string
   if (selected) {
     style = locking
-      ? 'bg-accent/50 border-accent text-text-primary animate-pulse'
-      : 'bg-accent border-accent text-text-primary shadow-[0_0_0_3px_rgba(226,55,68,0.22)]'
+      ? 'bg-accent/50 border-accent text-obsidian animate-pulse'
+      : 'bg-accent border-accent text-obsidian shadow-[0_0_0_3px_rgba(245,166,35,0.28)]'
   } else if (isBooked) {
     style = 'bg-surface-sunken border-border-muted text-text-muted cursor-not-allowed'
   } else if (isLockedByOther) {

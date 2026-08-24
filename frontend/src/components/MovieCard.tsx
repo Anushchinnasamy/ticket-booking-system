@@ -43,7 +43,7 @@ export function MovieCard({ id, title, genre, price, rating, bookedCount, status
         <div className="absolute inset-0 bg-gradient-to-b from-transparent from-45% to-black/80" />
 
         <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 backdrop-blur-[1px] transition-opacity duration-300 group-hover:opacity-100">
-          <span className="translate-y-2 rounded-full bg-accent px-4.5 py-2 text-xs font-semibold text-text-primary transition-transform duration-300 group-hover:translate-y-0">
+          <span className="translate-y-2 rounded-full bg-accent px-4.5 py-2 text-xs font-semibold text-obsidian transition-transform duration-300 group-hover:translate-y-0">
             View Showtimes
           </span>
         </div>

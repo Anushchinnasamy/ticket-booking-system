@@ -18,7 +18,7 @@ export async function fetchEvents(category?: EventCategory, city?: string): Prom
   if (city) url.searchParams.set('city', city)
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(12000) })
+    const res = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'no-store' })
     if (!res.ok) throw new Error(`GET /events failed with ${res.status}`)
     const data: EventSummaryResponse[] = await res.json()
     return { events: data.map(enrichEvent), isFallback: false }

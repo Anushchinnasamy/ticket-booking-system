@@ -117,7 +117,7 @@ export function Confirmation() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
         <div className="font-display text-lg font-bold">No booking to show</div>
-        <Link to="/" className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold cursor-pointer">Back to Home</Link>
+        <Link to="/" className="mt-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-obsidian cursor-pointer">Back to Home</Link>
       </div>
     )
   }
@@ -125,21 +125,24 @@ export function Confirmation() {
   return (
     <div className="flex flex-col items-center gap-10 px-6 py-14">
       <div className="flex flex-col items-center gap-3">
-        <motion.svg
-          width="56" height="56" viewBox="0 0 56 56"
-          initial={{ scale: prefersReducedMotion ? 1 : 0.7, opacity: 0 }}
+        <motion.div
+          initial={{ scale: prefersReducedMotion ? 1 : 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.4, ease: [0.2, 0.9, 0.3, 1.2] }}
+          transition={{ duration: 0.5, ease: [0.2, 0.9, 0.3, 1.2] }}
+          className="rounded-full"
+          style={{ boxShadow: '0 0 48px 8px rgba(245,166,35,0.28)' }}
         >
-          <circle cx="28" cy="28" r="26" fill="rgba(46,204,113,0.12)" stroke="#2ECC71" strokeWidth="2" />
-          <motion.path
-            d="M17 29l7 7 15-16" fill="none" stroke="#2ECC71" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
-            initial={{ pathLength: prefersReducedMotion ? 1 : 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.35, delay: 0.3, ease: 'easeOut' }}
-          />
-        </motion.svg>
-        <div className="font-display text-2xl font-extrabold tracking-tight">Booking Confirmed!</div>
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="26" fill="rgba(46,204,113,0.12)" stroke="#2ECC71" strokeWidth="2" />
+            <motion.path
+              d="M17 29l7 7 15-16" fill="none" stroke="#2ECC71" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+              initial={{ pathLength: prefersReducedMotion ? 1 : 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.35, delay: 0.3, ease: 'easeOut' }}
+            />
+          </svg>
+        </motion.div>
+        <div className="font-display text-3xl font-bold tracking-tight">You're Going.</div>
         {state?.eventTitle && (
           <div className="text-[13px] text-text-secondary">
             {state.eventTitle} &middot; {state.venueName} &middot; {formatShowtime(state.startTime)}
@@ -154,7 +157,7 @@ export function Confirmation() {
             animate={{ rotateY: 0, opacity: 1 }}
             transition={{ duration: 0.6, ease: [0.22, 0.85, 0.25, 1] }}
             style={{ transformStyle: 'preserve-3d' }}
-            className="flex flex-col gap-4 rounded-2xl bg-surface p-6 shadow-[0_20px_50px_-16px_rgba(0,0,0,0.6)] sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-5 rounded-2xl bg-surface p-6 shadow-[0_20px_50px_-16px_rgba(0,0,0,0.6)] sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
@@ -164,7 +167,18 @@ export function Confirmation() {
                 <span className="rounded-full bg-accent-dim px-2.5 py-1 text-[10.5px] font-bold text-gold">CONFIRMED</span>
               </div>
               <div className="text-xs text-text-secondary">One e-ticket covers all {seats.length} seat{seats.length === 1 ? '' : 's'} on this booking.</div>
+              {bookingId && (
+                <div className="font-variant-numeric-tabular text-[11px] tracking-wide text-text-muted">Booking ID: {bookingId}</div>
+              )}
               {ticket.error && <div className="text-xs text-danger">{ticket.error}</div>}
+            </div>
+
+            {/* Perforation motif — a ticket-stub cue between the booking info
+                and the ticket actions, at the sm:flex-row breakpoint only. */}
+            <div className="relative hidden self-stretch sm:block">
+              <div className="h-full w-px border-l-2 border-dashed border-border-muted" />
+              <div className="absolute -top-6 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-bg" />
+              <div className="absolute -bottom-6 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-bg" />
             </div>
 
             <div className="flex items-center gap-2.5">
@@ -189,7 +203,7 @@ export function Confirmation() {
         <Link to="/my-bookings" className="rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold cursor-pointer">
           View My Bookings
         </Link>
-        <Link to="/" className="rounded-xl bg-accent px-6 py-3 text-sm font-semibold cursor-pointer">
+        <Link to="/" className="rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-obsidian cursor-pointer">
           Explore More Shows
         </Link>
       </div>
@@ -203,7 +217,7 @@ function ActionButton({ label, onClick, busy, secondary, icon }: { label: string
       onClick={onClick}
       disabled={busy}
       className={`flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
-        secondary ? 'border border-border bg-surface-raised text-text-primary' : 'bg-accent text-text-primary'
+        secondary ? 'border border-border bg-surface-raised text-text-primary' : 'bg-accent text-obsidian'
       }`}
     >
       {icon === 'share' && (

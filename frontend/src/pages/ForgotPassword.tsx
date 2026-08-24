@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { forgotPassword } from '../api/auth'
-import { PosterCollagePanel } from '../components/PosterCollagePanel'
+import { PosterCollagePanel, MobileAuthAccent } from '../components/PosterCollagePanel'
 
 export function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -17,10 +17,10 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="flex min-h-screen bg-bg text-text-primary">
+    <div className="flex min-h-screen flex-col bg-bg text-text-primary lg:flex-row">
       <PosterCollagePanel />
 
-      <div className="flex flex-1 items-center justify-center px-4 sm:px-6">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         <form onSubmit={handleSubmit} className="flex w-full max-w-[380px] flex-col gap-5">
           <div>
             <div className="font-display text-[28px] font-extrabold tracking-tight">Reset your password</div>
@@ -45,7 +45,7 @@ export function ForgotPassword() {
           <button
             type="submit"
             disabled={submitting || sent}
-            className="rounded-xl bg-accent py-3.5 text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="rounded-xl bg-accent py-3.5 text-[15px] font-bold text-obsidian shadow-[0_10px_26px_rgba(245,166,35,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {submitting ? 'Sending…' : 'Send Reset Link'}
           </button>
@@ -60,6 +60,7 @@ export function ForgotPassword() {
           <Link to="/login" className="text-center text-[12.5px] font-semibold text-text-secondary cursor-pointer">&larr; Back to Log In</Link>
         </form>
       </div>
+      <MobileAuthAccent />
     </div>
   )
 }

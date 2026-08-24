@@ -1,107 +1,113 @@
 import { useState } from 'react'
-import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { login, AuthError } from '../api/auth'
-import { PosterCollagePanel } from '../components/PosterCollagePanel'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { requestOtp } from '../api/auth'
+import { LoginHero } from '../components/auth/LoginHero'
+import { ThemeToggle } from '../components/ThemeToggle'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: { pathname: string; search?: string; state?: unknown } } | null)?.from
 
-  const [email, setEmail] = useState('admin@ticketbooking.local')
-  const [password, setPassword] = useState('AdminPass123!')
-  const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [fallbackNotice, setFallbackNotice] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      const { isFallback } = await login({ email, password })
-      if (isFallback) setFallbackNotice(true)
-      navigate((from?.pathname ?? '/') + (from?.search ?? ''), { state: from?.state, replace: true })
-    } catch (err) {
-      setError(err instanceof AuthError ? err.message : 'Something went wrong — please try again.')
-    } finally {
-      setSubmitting(false)
+
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailError('Invalid email address')
+      return
     }
+    setEmailError(null)
+    setSubmitting(true)
+    await requestOtp(email)
+    navigate('/verify-otp', { state: { email, from } })
   }
 
   return (
-    <div className="flex min-h-screen bg-bg text-text-primary">
-      <PosterCollagePanel />
+    <div className="relative flex min-h-screen flex-col text-text-primary lg:flex-row">
+      <LoginHero />
 
-      <div className="flex flex-1 items-center justify-center px-4 sm:px-6">
-        <form onSubmit={handleSubmit} className="flex w-full max-w-[380px] flex-col gap-5">
-          <div>
-            <div className="font-display text-[28px] font-extrabold tracking-tight">Welcome back</div>
-            <div className="mt-2 text-[13.5px] text-text-secondary">Log in to hold seats and manage your bookings.</div>
-          </div>
+      <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
+        <div className="absolute right-5 top-5 hidden lg:block">
+          <ThemeToggle />
+        </div>
 
-          {error && <div className="rounded-lg border border-danger/35 bg-danger/10 px-3.5 py-2.5 text-[13px] text-danger">{error}</div>}
-          {fallbackNotice && (
-            <div className="rounded-lg border border-gold/30 bg-accent-dim px-3.5 py-2.5 text-[13px] text-gold">
-              Couldn't reach the auth API — signed in with a simulated session for local testing.
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="relative w-full max-w-[480px] rounded-[22px] border border-border bg-surface/70 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:p-11"
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div>
+              <div className="font-display text-[30px] font-bold tracking-tight">Welcome Back</div>
+              <div className="mt-2 text-[13.5px] text-text-secondary">Enter your email and we'll send you a one-time login code.</div>
             </div>
-          )}
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-text-secondary">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-[10px] border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-text-secondary">Password</label>
-            <div className="flex items-center rounded-[10px] border border-border bg-surface px-4 py-3 focus-within:border-accent">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent text-sm text-text-primary focus:outline-none"
-              />
-              <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-text-secondary cursor-pointer">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" />
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="login-email" className="text-xs font-semibold text-text-secondary">
+                Email Address
+              </label>
+              <div
+                className={`flex items-center gap-2.5 rounded-[12px] border bg-white/[0.035] px-4 py-3.5 transition-colors duration-200 focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(245,166,35,0.10)] ${
+                  emailError ? 'border-danger' : 'border-border'
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-text-muted">
+                  <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" />
                 </svg>
-              </button>
+                <input
+                  id="login-email"
+                  type="email"
+                  required
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (emailError) setEmailError(null)
+                  }}
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'login-email-error' : undefined}
+                  className="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none!"
+                />
+              </div>
+              {emailError && (
+                <span id="login-email-error" className="text-xs text-danger">
+                  {emailError}
+                </span>
+              )}
             </div>
-          </div>
 
-          <div className="-mt-1.5 flex justify-end">
-            <Link to="/forgot-password" className="text-[12.5px] font-semibold text-accent cursor-pointer">Forgot password?</Link>
-          </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="group mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-bold text-obsidian shadow-[0_8px_30px_rgba(245,166,35,0.30)] transition-[filter,transform] duration-200 hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+            >
+              {submitting ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-obsidian/25 border-t-obsidian" />
+                  Sending code…
+                </>
+              ) : (
+                <>
+                  Send Code
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </>
+              )}
+            </button>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-1 rounded-xl bg-accent py-3.5 text-[15px] font-bold shadow-[0_10px_26px_rgba(226,55,68,0.35)] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-          >
-            {submitting ? 'Signing in…' : 'Log In'}
-          </button>
-
-          <div className="flex items-center gap-3 text-xs text-text-secondary">
-            <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <Link
-            to="/verify-otp"
-            className="rounded-xl border border-border bg-surface py-3.5 text-center text-[15px] font-semibold cursor-pointer"
-          >
-            Log In with a Code Instead
-          </Link>
-
-          <div className="text-center text-xs text-text-secondary">Pre-filled with the seeded admin account for local testing.</div>
-        </form>
+            <div className="text-center text-xs text-text-muted">We'll email you a 6-digit code — no password needed.</div>
+          </form>
+        </motion.div>
       </div>
     </div>
   )

@@ -50,10 +50,6 @@ event-service:
 payment-service:
   base-url: http://localhost:8083
 
-redis:
-  host: localhost
-  port: 6379
-
 booking:
   hold-ttl-minutes: 5
 

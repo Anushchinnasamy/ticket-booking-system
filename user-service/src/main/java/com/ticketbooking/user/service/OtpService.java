@@ -2,12 +2,12 @@ package com.ticketbooking.user.service;
 
 import com.ticketbooking.common.event.OtpRequestedEvent;
 import com.ticketbooking.common.exception.UnauthorizedException;
+import com.ticketbooking.user.cache.InMemoryExpiringStore;
 import com.ticketbooking.user.domain.User;
 import com.ticketbooking.user.repository.UserRepository;
 import com.ticketbooking.user.util.TokenGenerator;
 import com.ticketbooking.user.web.dto.AuthResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +17,9 @@ import java.time.Instant;
 
 /**
  * Passwordless login: runs alongside password login, not instead of it.
- * Redis is the store here (not Postgres) because an OTP is inherently
- * ephemeral — it either gets used within its TTL or it doesn't matter
- * anymore.
+ * The OTP store here is deliberately not the primary Postgres database —
+ * an OTP is inherently ephemeral, it either gets used within its TTL or it
+ * doesn't matter anymore.
  */
 @Service
 public class OtpService {
@@ -31,7 +31,7 @@ public class OtpService {
 
     private final UserRepository userRepository;
     private final AuthService authService;
-    private final StringRedisTemplate redisTemplate;
+    private final InMemoryExpiringStore store;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final Duration otpTtl;
     private final int rateLimitMaxRequests;
@@ -39,14 +39,14 @@ public class OtpService {
 
     public OtpService(UserRepository userRepository,
                        AuthService authService,
-                       StringRedisTemplate redisTemplate,
+                       InMemoryExpiringStore store,
                        KafkaTemplate<String, Object> kafkaTemplate,
                        @Value("${otp.ttl-minutes}") long otpTtlMinutes,
                        @Value("${otp.rate-limit.max-requests}") int rateLimitMaxRequests,
                        @Value("${otp.rate-limit.window-minutes}") long rateLimitWindowMinutes) {
         this.userRepository = userRepository;
         this.authService = authService;
-        this.redisTemplate = redisTemplate;
+        this.store = store;
         this.kafkaTemplate = kafkaTemplate;
         this.otpTtl = Duration.ofMinutes(otpTtlMinutes);
         this.rateLimitMaxRequests = rateLimitMaxRequests;
@@ -60,7 +60,7 @@ public class OtpService {
         }
         userRepository.findByEmail(email).ifPresent(user -> {
             String otp = TokenGenerator.randomNumericOtp(OTP_DIGITS);
-            redisTemplate.opsForValue().set(OTP_KEY_PREFIX + email, TokenGenerator.sha256Hex(otp), otpTtl);
+            store.set(OTP_KEY_PREFIX + email, TokenGenerator.sha256Hex(otp), otpTtl);
             kafkaTemplate.send(KAFKA_TOPIC, email, new OtpRequestedEvent(email, otp, Instant.now().plus(otpTtl)));
         });
     }
@@ -73,8 +73,8 @@ public class OtpService {
     @Transactional(readOnly = true)
     public AuthResponse verifyOtp(String email, String otp) {
         String key = OTP_KEY_PREFIX + email;
-        String storedHash = redisTemplate.opsForValue().get(key);
-        redisTemplate.delete(key);
+        String storedHash = store.get(key);
+        store.delete(key);
 
         if (storedHash == null || !storedHash.equals(TokenGenerator.sha256Hex(otp))) {
             throw new UnauthorizedException("Invalid or expired OTP");
@@ -86,10 +86,10 @@ public class OtpService {
     }
 
     private boolean withinRateLimit(String key) {
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1L) {
-            redisTemplate.expire(key, rateLimitWindow);
+        long count = store.increment(key);
+        if (count == 1L) {
+            store.expire(key, rateLimitWindow);
         }
-        return count == null || count <= rateLimitMaxRequests;
+        return count <= rateLimitMaxRequests;
     }
 }

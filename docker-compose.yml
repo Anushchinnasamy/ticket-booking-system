@@ -75,19 +75,6 @@ services:
     networks:
       - ticket-booking-net
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6380:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - ticket-booking-net
-
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
@@ -152,14 +139,11 @@ services:
     depends_on:
       postgres-event:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-event:5432/event_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATA_REDIS_HOST: redis
     ports:
       - "8081:8081"
     healthcheck:
@@ -179,8 +163,6 @@ services:
     depends_on:
       postgres-booking:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_healthy
       minio:
@@ -190,7 +172,6 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-booking:5432/booking_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      REDIS_HOST: redis
       EVENT_SERVICE_BASE_URL: http://event-service:8081
       PAYMENT_SERVICE_BASE_URL: http://payment-service:8083
       TICKET_STORAGE_ENDPOINT: http://minio:9000
@@ -241,14 +222,11 @@ services:
     depends_on:
       postgres-user:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/user_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATA_REDIS_HOST: redis
     ports:
       - "8084:8084"
     healthcheck:
@@ -298,8 +276,6 @@ services:
       dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
     depends_on:
-      redis:
-        condition: service_healthy
       event-service:
         condition: service_started
       booking-service:
@@ -309,7 +285,6 @@ services:
       user-service:
         condition: service_started
     environment:
-      SPRING_DATA_REDIS_HOST: redis
       EVENT_SERVICE_URL: http://event-service:8081
       BOOKING_SERVICE_URL: http://booking-service:8082
       PAYMENT_SERVICE_URL: http://payment-service:8083

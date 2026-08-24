@@ -2,91 +2,53 @@
 # frontend, which is deployed separately to Vercel). Deploy via Render's
 # dashboard: New -> Blueprint -> connect this repo -> Render reads this file.
 #
+# Only api-gateway is a public `web` service; every other backend service is
+# a private service (`pserv`), reachable by other Render services in this
+# project but not from the public internet — the same "internal network"
+# shape docker-compose.yml uses locally, and the same reasoning the gateway's
+# own route list already documents (internal endpoints have no route
+# because nothing outside is meant to reach a service directly).
+#
 # NOT tested against a live Render deploy (no Render account access from
 # here) — written from Render's documented Blueprint spec and the same
 # environment-variable wiring already verified working in docker-compose.yml.
 # Expect to iterate on this with real deploy logs the first time it runs.
-#
-# Audited against Render's actual docs (2026-08-24) and fixed two real bugs
-# that would have broken the very first deploy attempt:
-#   1. Postgres `connectionString` is a postgres:// URI, not the
-#      jdbc:postgresql:// URL Spring needs. Each service now gets a
-#      DATABASE_URL env var (deliberately not SPRING_DATASOURCE_URL) instead
-#      of three separate SPRING_DATASOURCE_* vars — common-lib's
-#      RenderDatabaseUrlEnvironmentPostProcessor rewrites it into
-#      spring.datasource.{url,username,password} at boot. Local dev is
-#      unaffected (no DATABASE_URL set there).
-#   2. Every service now gets an explicit PORT env var matching what it's
-#      actually hardcoded to listen on, and every service's application.yml
-#      now reads `server.port: ${PORT:<default>}` — Render's docs are
-#      explicit that it does NOT reliably route to a hardcoded port unless
-#      the app itself binds to whatever PORT says.
-#
-# All-free-tier variant (2026-08-24): every service below is now `type: web`
-# on `plan: free` — Render has no free tier for `pserv` (private services)
-# at all, so the only way to run this whole stack at zero cost is to make
-# every service a free public web service instead. Explicit, accepted
-# tradeoffs from that choice, not oversights:
-#   - Free services have no persistent disk (paid-only on Render) and sleep
-#     after ~15 min idle, restarting fresh on the next request. Kafka and
-#     MinIO lose all data (topics/offsets, stored ticket PDFs) on every such
-#     restart — acceptable for a portfolio/demo deploy, not for anything
-#     meant to durably hold real data.
-#   - Every service is now internet-reachable, not just api-gateway. None of
-#     the internal services (event/booking/payment/user/notification-service)
-#     enforce their own auth on incoming requests — they relied on Render's
-#     private network as the only thing standing between them and the
-#     internet. That boundary is now gone. Fine for a demo; revisit before
-#     this ever handles anything real.
-#   - Cold starts chain: a single frontend action can touch api-gateway ->
-#     event-service -> booking-service -> payment-service in sequence. If
-#     multiple of those have gone to sleep, each can take 30-60s to wake,
-#     and frontend/src/api/*.ts's fetch calls time out at 12s
-#     (AbortSignal.timeout(12000)) — expect visible timeouts on the first
-#     request after any idle period, not just slowness.
-#   - Kafka speaks its own wire protocol on 9092, not HTTP — Render's `web`
-#     health check expects an HTTP response. Left without a custom
-#     healthCheckPath (no HTTP path exists to check); if Render's dashboard
-#     shows it "unhealthy" despite still working for other services over
-#     the private network, that mismatch is why — not a real outage.
-#
-# Single shared Postgres, split by schema (2026-08-24): Render also caps free
-# accounts at *one* free Postgres instance, not four — see the comment right
-# above `databases:` below for how the 4 services now share one instance via
-# per-service schemas instead of 4 separate database instances.
-#
-# No Redis (2026-08-24): Render also caps free accounts at *one* free Key
-# Value (Redis) instance, and this account's was already used by an
-# unrelated project. Rather than pay for a Starter instance or add an
-# external free Redis provider, Redis was removed from the app entirely —
-# SeatLockService, OtpService/PasswordResetService, SeatMapCacheService, and
-# api-gateway's RequestRateLimiter all now use in-process state instead
-# (ConcurrentHashMap-backed). This is correct specifically because every
-# service here runs as exactly one free-tier instance with no horizontal
-# scaling — see each replacement class's javadoc for details.
 
-# Render allows only one free Postgres instance per account — all 4 services
-# share this single instance, each confined to its own Postgres *schema*
-# (event_service/booking_service/payment_service/user_service) via the
-# DB_SCHEMA env var each service sets below. See
-# RenderDatabaseUrlEnvironmentPostProcessor in common-lib for how that's
-# wired into spring.datasource.url + spring.flyway.schemas at boot.
 databases:
-  - name: app-db
-    databaseName: app_db
-    user: appdb
+  - name: event-db
+    databaseName: event_db
+    user: event
+    plan: free
+  - name: booking-db
+    databaseName: booking_db
+    user: booking
+    plan: free
+  - name: payment-db
+    databaseName: payment_db
+    user: payment
+    plan: free
+  - name: user-db
+    databaseName: user_db
+    user: appuser
     plan: free
 
 services:
-  - type: web
+  - type: redis
+    name: redis
+    plan: free
+    ipAllowList: []
+
+  - type: pserv
     name: kafka
     runtime: image
     image:
       url: docker.io/confluentinc/cp-kafka:7.6.1
-    plan: free
+    plan: starter
+    disk:
+      name: kafka-data
+      mountPath: /var/lib/kafka/data
+      sizeGB: 5
     envVars:
-      - key: PORT
-        value: "9092"
       - key: KAFKA_NODE_ID
         value: "1"
       - key: KAFKA_PROCESS_ROLES
@@ -106,68 +68,86 @@ services:
       - key: CLUSTER_ID
         value: ciWo7IWazngRchmPES6q5A==
 
-  - type: web
+  - type: pserv
     name: minio
     runtime: image
     image:
       url: docker.io/minio/minio:latest
-    plan: free
-    # Render's dockerCommand replaces the image's ENTRYPOINT+CMD entirely
-    # rather than just appending args to ENTRYPOINT ["minio"] the way
-    # docker-compose.yml's `command:` does — leaving off the leading
-    # `minio` here made the container try to exec a literal `server`
-    # binary that doesn't exist, exiting 128 with no other log output.
-    dockerCommand: minio server /data --address :9000 --console-address :9090
-    healthCheckPath: /minio/health/live
+    plan: starter
+    dockerCommand: server /data --console-address ":9090"
+    disk:
+      name: minio-data
+      mountPath: /data
+      sizeGB: 5
     envVars:
-      - key: PORT
-        value: "9000"
       - key: MINIO_ROOT_USER
         sync: false
       - key: MINIO_ROOT_PASSWORD
         sync: false
 
-  - type: web
+  - type: pserv
     name: event-service
     runtime: docker
     dockerfilePath: ./event-service/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8081"
-      # Render's Postgres `connectionString` is a postgres:// URI, not the
-      # jdbc:postgresql:// URL Spring needs — DATABASE_URL (deliberately not
-      # named SPRING_DATASOURCE_URL) is rewritten into spring.datasource.*
-      # at boot by common-lib's RenderDatabaseUrlEnvironmentPostProcessor.
-      - key: DATABASE_URL
+      - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: app-db
+          name: event-db
           property: connectionString
-      - key: DB_SCHEMA
-        value: event_service
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: event-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: event-db
+          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
 
-  - type: web
+  - type: pserv
     name: booking-service
     runtime: docker
     dockerfilePath: ./booking-service/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8082"
-      - key: DATABASE_URL
+      - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: app-db
+          name: booking-db
           property: connectionString
-      - key: DB_SCHEMA
-        value: booking_service
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: booking-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: booking-db
+          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
+      - key: REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
       - key: EVENT_SERVICE_BASE_URL
         value: http://event-service:8081
       - key: PAYMENT_SERVICE_BASE_URL
@@ -179,22 +159,25 @@ services:
       - key: MINIO_SECRET_KEY
         sync: false
 
-  - type: web
+  - type: pserv
     name: payment-service
     runtime: docker
     dockerfilePath: ./payment-service/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8083"
-      - key: DATABASE_URL
+      - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: app-db
+          name: payment-db
           property: connectionString
-      - key: DB_SCHEMA
-        value: payment_service
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: payment-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: payment-db
+          property: password
       - key: BOOKING_SERVICE_BASE_URL
         value: http://booking-service:8082
       - key: RAZORPAY_KEY_ID
@@ -202,35 +185,45 @@ services:
       - key: RAZORPAY_KEY_SECRET
         sync: false
 
-  - type: web
+  - type: pserv
     name: user-service
     runtime: docker
     dockerfilePath: ./user-service/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8084"
-      - key: DATABASE_URL
+      - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: app-db
+          name: user-db
           property: connectionString
-      - key: DB_SCHEMA
-        value: user_service
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: user-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: user-db
+          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
 
-  - type: web
+  - type: pserv
     name: notification-service
     runtime: docker
     dockerfilePath: ./notification-service/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8085"
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: USER_SERVICE_BASE_URL
@@ -249,11 +242,18 @@ services:
     runtime: docker
     dockerfilePath: ./api-gateway/Dockerfile
     dockerContext: .
-    plan: free
-    healthCheckPath: /actuator/health
+    plan: starter
     envVars:
-      - key: PORT
-        value: "8080"
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: redis
+          type: redis
+          property: port
       - key: EVENT_SERVICE_URL
         value: http://event-service:8081
       - key: BOOKING_SERVICE_URL

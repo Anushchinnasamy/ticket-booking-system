@@ -13,7 +13,7 @@ COPY user-service ./user-service
 COPY notification-service ./notification-service
 COPY api-gateway ./api-gateway
 
-RUN mvn -pl booking-service,common-lib -am package -Dmaven.test.skip=true -q
+RUN mvn -pl booking-service,common-lib -am package -DskipTests -q
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app

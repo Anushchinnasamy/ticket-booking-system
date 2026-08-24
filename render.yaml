@@ -49,23 +49,22 @@
 #     healthCheckPath (no HTTP path exists to check); if Render's dashboard
 #     shows it "unhealthy" despite still working for other services over
 #     the private network, that mismatch is why — not a real outage.
+#
+# Single shared Postgres, split by schema (2026-08-24): Render also caps free
+# accounts at *one* free Postgres instance, not four — see the comment right
+# above `databases:` below for how the 4 services now share one instance via
+# per-service schemas instead of 4 separate database instances.
 
+# Render allows only one free Postgres instance per account — all 4 services
+# share this single instance, each confined to its own Postgres *schema*
+# (event_service/booking_service/payment_service/user_service) via the
+# DB_SCHEMA env var each service sets below. See
+# RenderDatabaseUrlEnvironmentPostProcessor in common-lib for how that's
+# wired into spring.datasource.url + spring.flyway.schemas at boot.
 databases:
-  - name: event-db
-    databaseName: event_db
-    user: event
-    plan: free
-  - name: booking-db
-    databaseName: booking_db
-    user: booking
-    plan: free
-  - name: payment-db
-    databaseName: payment_db
-    user: payment
-    plan: free
-  - name: user-db
-    databaseName: user_db
-    user: appuser
+  - name: app-db
+    databaseName: app_db
+    user: appdb
     plan: free
 
 services:
@@ -134,8 +133,10 @@ services:
       # at boot by common-lib's RenderDatabaseUrlEnvironmentPostProcessor.
       - key: DATABASE_URL
         fromDatabase:
-          name: event-db
+          name: app-db
           property: connectionString
+      - key: DB_SCHEMA
+        value: event_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: SPRING_DATA_REDIS_HOST
@@ -161,8 +162,10 @@ services:
         value: "8082"
       - key: DATABASE_URL
         fromDatabase:
-          name: booking-db
+          name: app-db
           property: connectionString
+      - key: DB_SCHEMA
+        value: booking_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: REDIS_HOST
@@ -198,8 +201,10 @@ services:
         value: "8083"
       - key: DATABASE_URL
         fromDatabase:
-          name: payment-db
+          name: app-db
           property: connectionString
+      - key: DB_SCHEMA
+        value: payment_service
       - key: BOOKING_SERVICE_BASE_URL
         value: http://booking-service:8082
       - key: RAZORPAY_KEY_ID
@@ -219,8 +224,10 @@ services:
         value: "8084"
       - key: DATABASE_URL
         fromDatabase:
-          name: user-db
+          name: app-db
           property: connectionString
+      - key: DB_SCHEMA
+        value: user_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: SPRING_DATA_REDIS_HOST

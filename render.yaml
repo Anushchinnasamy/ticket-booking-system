@@ -13,6 +13,21 @@
 # here) — written from Render's documented Blueprint spec and the same
 # environment-variable wiring already verified working in docker-compose.yml.
 # Expect to iterate on this with real deploy logs the first time it runs.
+#
+# Audited against Render's actual docs (2026-08-24) and fixed two real bugs
+# that would have broken the very first deploy attempt:
+#   1. Postgres `connectionString` is a postgres:// URI, not the
+#      jdbc:postgresql:// URL Spring needs. Each service now gets a
+#      DATABASE_URL env var (deliberately not SPRING_DATASOURCE_URL) instead
+#      of three separate SPRING_DATASOURCE_* vars — common-lib's
+#      RenderDatabaseUrlEnvironmentPostProcessor rewrites it into
+#      spring.datasource.{url,username,password} at boot. Local dev is
+#      unaffected (no DATABASE_URL set there).
+#   2. Every service now gets an explicit PORT env var matching what it's
+#      actually hardcoded to listen on, and every service's application.yml
+#      now reads `server.port: ${PORT:<default>}` — Render's docs are
+#      explicit that it does NOT reliably route to a hardcoded port unless
+#      the app itself binds to whatever PORT says.
 
 databases:
   - name: event-db
@@ -92,18 +107,16 @@ services:
     dockerContext: .
     plan: starter
     envVars:
-      - key: SPRING_DATASOURCE_URL
+      - key: PORT
+        value: "8081"
+      # Render's Postgres `connectionString` is a postgres:// URI, not the
+      # jdbc:postgresql:// URL Spring needs — DATABASE_URL (deliberately not
+      # named SPRING_DATASOURCE_URL) is rewritten into spring.datasource.*
+      # at boot by common-lib's RenderDatabaseUrlEnvironmentPostProcessor.
+      - key: DATABASE_URL
         fromDatabase:
           name: event-db
           property: connectionString
-      - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: event-db
-          property: user
-      - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: event-db
-          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: SPRING_DATA_REDIS_HOST
@@ -124,18 +137,12 @@ services:
     dockerContext: .
     plan: starter
     envVars:
-      - key: SPRING_DATASOURCE_URL
+      - key: PORT
+        value: "8082"
+      - key: DATABASE_URL
         fromDatabase:
           name: booking-db
           property: connectionString
-      - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: booking-db
-          property: user
-      - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: booking-db
-          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: REDIS_HOST
@@ -166,18 +173,12 @@ services:
     dockerContext: .
     plan: starter
     envVars:
-      - key: SPRING_DATASOURCE_URL
+      - key: PORT
+        value: "8083"
+      - key: DATABASE_URL
         fromDatabase:
           name: payment-db
           property: connectionString
-      - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: payment-db
-          property: user
-      - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: payment-db
-          property: password
       - key: BOOKING_SERVICE_BASE_URL
         value: http://booking-service:8082
       - key: RAZORPAY_KEY_ID
@@ -192,18 +193,12 @@ services:
     dockerContext: .
     plan: starter
     envVars:
-      - key: SPRING_DATASOURCE_URL
+      - key: PORT
+        value: "8084"
+      - key: DATABASE_URL
         fromDatabase:
           name: user-db
           property: connectionString
-      - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: user-db
-          property: user
-      - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: user-db
-          property: password
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: SPRING_DATA_REDIS_HOST
@@ -224,6 +219,8 @@ services:
     dockerContext: .
     plan: starter
     envVars:
+      - key: PORT
+        value: "8085"
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
       - key: USER_SERVICE_BASE_URL
@@ -244,6 +241,8 @@ services:
     dockerContext: .
     plan: starter
     envVars:
+      - key: PORT
+        value: "8080"
       - key: SPRING_DATA_REDIS_HOST
         fromService:
           name: redis

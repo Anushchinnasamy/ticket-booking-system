@@ -112,7 +112,12 @@ services:
     image:
       url: docker.io/minio/minio:latest
     plan: free
-    dockerCommand: server /data --address ":9000" --console-address ":9090"
+    # Render's dockerCommand replaces the image's ENTRYPOINT+CMD entirely
+    # rather than just appending args to ENTRYPOINT ["minio"] the way
+    # docker-compose.yml's `command:` does — leaving off the leading
+    # `minio` here made the container try to exec a literal `server`
+    # binary that doesn't exist, exiting 128 with no other log output.
+    dockerCommand: minio server /data --address :9000 --console-address :9090
     healthCheckPath: /minio/health/live
     envVars:
       - key: PORT

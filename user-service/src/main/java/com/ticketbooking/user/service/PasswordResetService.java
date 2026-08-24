@@ -2,13 +2,13 @@ package com.ticketbooking.user.service;
 
 import com.ticketbooking.common.event.PasswordResetRequestedEvent;
 import com.ticketbooking.common.exception.UnauthorizedException;
+import com.ticketbooking.user.cache.InMemoryExpiringStore;
 import com.ticketbooking.user.domain.PasswordResetToken;
 import com.ticketbooking.user.domain.User;
 import com.ticketbooking.user.repository.PasswordResetTokenRepository;
 import com.ticketbooking.user.repository.UserRepository;
 import com.ticketbooking.user.util.TokenGenerator;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final StringRedisTemplate redisTemplate;
+    private final InMemoryExpiringStore store;
     private final Duration tokenTtl;
     private final int rateLimitMaxRequests;
     private final Duration rateLimitWindow;
@@ -36,7 +36,7 @@ public class PasswordResetService {
                                  PasswordResetTokenRepository tokenRepository,
                                  PasswordEncoder passwordEncoder,
                                  KafkaTemplate<String, Object> kafkaTemplate,
-                                 StringRedisTemplate redisTemplate,
+                                 InMemoryExpiringStore store,
                                  @Value("${password-reset.ttl-minutes}") long tokenTtlMinutes,
                                  @Value("${password-reset.rate-limit.max-requests}") int rateLimitMaxRequests,
                                  @Value("${password-reset.rate-limit.window-minutes}") long rateLimitWindowMinutes) {
@@ -44,7 +44,7 @@ public class PasswordResetService {
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.kafkaTemplate = kafkaTemplate;
-        this.redisTemplate = redisTemplate;
+        this.store = store;
         this.tokenTtl = Duration.ofMinutes(tokenTtlMinutes);
         this.rateLimitMaxRequests = rateLimitMaxRequests;
         this.rateLimitWindow = Duration.ofMinutes(rateLimitWindowMinutes);
@@ -86,10 +86,10 @@ public class PasswordResetService {
     }
 
     private boolean withinRateLimit(String key) {
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1L) {
-            redisTemplate.expire(key, rateLimitWindow);
+        long count = store.increment(key);
+        if (count == 1L) {
+            store.expire(key, rateLimitWindow);
         }
-        return count == null || count <= rateLimitMaxRequests;
+        return count <= rateLimitMaxRequests;
     }
 }

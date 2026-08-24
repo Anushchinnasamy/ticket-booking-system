@@ -54,6 +54,16 @@
 # accounts at *one* free Postgres instance, not four — see the comment right
 # above `databases:` below for how the 4 services now share one instance via
 # per-service schemas instead of 4 separate database instances.
+#
+# No Redis (2026-08-24): Render also caps free accounts at *one* free Key
+# Value (Redis) instance, and this account's was already used by an
+# unrelated project. Rather than pay for a Starter instance or add an
+# external free Redis provider, Redis was removed from the app entirely —
+# SeatLockService, OtpService/PasswordResetService, SeatMapCacheService, and
+# api-gateway's RequestRateLimiter all now use in-process state instead
+# (ConcurrentHashMap-backed). This is correct specifically because every
+# service here runs as exactly one free-tier instance with no horizontal
+# scaling — see each replacement class's javadoc for details.
 
 # Render allows only one free Postgres instance per account — all 4 services
 # share this single instance, each confined to its own Postgres *schema*
@@ -68,11 +78,6 @@ databases:
     plan: free
 
 services:
-  - type: redis
-    name: redis
-    plan: free
-    ipAllowList: []
-
   - type: web
     name: kafka
     runtime: image
@@ -139,16 +144,6 @@ services:
         value: event_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
-      - key: SPRING_DATA_REDIS_HOST
-        fromService:
-          name: redis
-          type: redis
-          property: host
-      - key: SPRING_DATA_REDIS_PORT
-        fromService:
-          name: redis
-          type: redis
-          property: port
 
   - type: web
     name: booking-service
@@ -168,16 +163,6 @@ services:
         value: booking_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
-      - key: REDIS_HOST
-        fromService:
-          name: redis
-          type: redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: redis
-          type: redis
-          property: port
       - key: EVENT_SERVICE_BASE_URL
         value: http://event-service:8081
       - key: PAYMENT_SERVICE_BASE_URL
@@ -230,16 +215,6 @@ services:
         value: user_service
       - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
         value: kafka:9092
-      - key: SPRING_DATA_REDIS_HOST
-        fromService:
-          name: redis
-          type: redis
-          property: host
-      - key: SPRING_DATA_REDIS_PORT
-        fromService:
-          name: redis
-          type: redis
-          property: port
 
   - type: web
     name: notification-service
@@ -274,16 +249,6 @@ services:
     envVars:
       - key: PORT
         value: "8080"
-      - key: SPRING_DATA_REDIS_HOST
-        fromService:
-          name: redis
-          type: redis
-          property: host
-      - key: SPRING_DATA_REDIS_PORT
-        fromService:
-          name: redis
-          type: redis
-          property: port
       - key: EVENT_SERVICE_URL
         value: http://event-service:8081
       - key: BOOKING_SERVICE_URL

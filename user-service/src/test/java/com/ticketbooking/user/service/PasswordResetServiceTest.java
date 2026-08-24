@@ -2,6 +2,7 @@ package com.ticketbooking.user.service;
 
 import com.ticketbooking.common.event.PasswordResetRequestedEvent;
 import com.ticketbooking.common.exception.UnauthorizedException;
+import com.ticketbooking.user.cache.InMemoryExpiringStore;
 import com.ticketbooking.user.domain.PasswordResetToken;
 import com.ticketbooking.user.domain.User;
 import com.ticketbooking.user.domain.UserRole;
@@ -11,12 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -46,26 +46,16 @@ class PasswordResetServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private final InMemoryExpiringStore store = new InMemoryExpiringStore();
 
     private PasswordResetService newService() {
         return new PasswordResetService(userRepository, tokenRepository, passwordEncoder, kafkaTemplate,
-                redisTemplate, 15, 3, 60);
-    }
-
-    private void stubRateLimit(long countAfterIncrement) {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(countAfterIncrement);
+                store, 15, 3, 60);
     }
 
     @Test
     void forgotPassword_whenUserExists_savesTokenAndPublishesEvent() {
         PasswordResetService service = newService();
-        stubRateLimit(1L);
         User user = userWithId("a@b.com", "hashed", UserRole.CUSTOMER);
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
@@ -78,7 +68,6 @@ class PasswordResetServiceTest {
     @Test
     void forgotPassword_whenUserDoesNotExist_completesWithoutSavingOrPublishing() {
         PasswordResetService service = newService();
-        stubRateLimit(1L);
         when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
 
         service.forgotPassword("nobody@example.com");
@@ -90,7 +79,7 @@ class PasswordResetServiceTest {
     @Test
     void forgotPassword_whenRateLimited_doesNotLookUpUserAtAll() {
         PasswordResetService service = newService();
-        stubRateLimit(4L); // over the max of 3
+        store.set("password-reset-rate:a@b.com", "3", Duration.ofMinutes(60)); // already at the max of 3
 
         service.forgotPassword("a@b.com");
 
